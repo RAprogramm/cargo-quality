@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-License-Identifier: MIT
+
 //! Cargo quality analysis tool for Rust code.
 //!
 //! This binary provides a command-line interface for analyzing and improving
@@ -26,6 +29,9 @@ use walkdir::WalkDir;
 use crate::{
     analyzers::get_analyzers,
     cli::{Command, QualityArgs},
+    differ::{
+        DiffResult, collect_files, generate_diff, show_full, show_interactive, show_summary
+    },
     error::{IoError, ParseError},
     report::Report
 };
@@ -33,6 +39,7 @@ use crate::{
 mod analyzer;
 mod analyzers;
 mod cli;
+mod differ;
 mod error;
 mod formatter;
 mod help;
@@ -56,6 +63,11 @@ fn main() -> AppResult<()> {
         Command::Fmt {
             path: _
         } => formatter::format_code()?,
+        Command::Diff {
+            path,
+            summary,
+            interactive
+        } => run_diff(&path, summary, interactive)?,
         Command::Help => {
             help::display_help();
             return Ok(());
@@ -173,6 +185,57 @@ fn fix_quality(path: &str, dry_run: bool) -> AppResult<()> {
 /// `AppResult<()>` - Ok if formatting succeeds, error otherwise
 fn format_quality(path: &str) -> AppResult<()> {
     fix_quality(path, false)
+}
+
+/// Show diff of proposed quality fixes.
+///
+/// Displays changes that would be made by quality analyzers. Supports three
+/// modes:
+/// - Full: Complete unified diff output
+/// - Summary: Brief statistics by file and analyzer
+/// - Interactive: User selects which changes to apply
+///
+/// # Arguments
+///
+/// * `path` - File or directory path to analyze
+/// * `summary` - Show brief summary instead of full diff
+/// * `interactive` - Enable interactive mode for selecting changes
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if diff generated successfully, error otherwise
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_quality::run_diff;
+/// run_diff("src/", false, false).unwrap();
+/// ```
+fn run_diff(path: &str, summary: bool, interactive: bool) -> AppResult<()> {
+    let files = collect_files(path)?;
+    let analyzers = get_analyzers();
+
+    let mut result = DiffResult::new();
+
+    for file_path in files {
+        let file_diff = generate_diff(file_path.to_str().unwrap_or(""), &analyzers)?;
+        result.add_file(file_diff);
+    }
+
+    if result.total_changes() == 0 {
+        println!("No changes proposed");
+        return Ok(());
+    }
+
+    if summary {
+        show_summary(&result);
+    } else if interactive {
+        let _selected = show_interactive(&result)?;
+    } else {
+        show_full(&result);
+    }
+
+    Ok(())
 }
 
 /// Collect all Rust source files from a path.

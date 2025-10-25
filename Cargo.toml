@@ -3,9 +3,16 @@ name = "cargo-quality"
 version = "0.1.0"
 edition = "2024"
 authors = ["RAprogramm <andrey.rozanov.vl@gmail.com>"]
-description = "Cargo tool for Rust code quality analysis and fixes"
+description = "Professional Rust code quality analysis tool with hardcoded standards"
 license = "MIT"
 repository = "https://github.com/RAprogramm/cargo-quality"
+homepage = "https://github.com/RAprogramm/cargo-quality"
+documentation = "https://docs.rs/cargo-quality"
+readme = "README.md"
+keywords = ["cargo", "quality", "formatter", "analyzer", "linter"]
+categories = ["development-tools", "command-line-utilities"]
+exclude = [".github", "target", ".git"]
+rust-version = "1.90"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

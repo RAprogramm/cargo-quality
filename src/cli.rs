@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-License-Identifier: MIT
+
 //! Command-line interface definitions using clap.
 //!
 //! Defines the CLI structure for cargo-quality with support for check, fix,
@@ -70,6 +73,21 @@ pub enum Command {
         /// Path to format (default: current directory)
         #[arg(default_value = ".")]
         path: String
+    },
+
+    /// Show diff of proposed changes before applying
+    Diff {
+        /// Path to analyze (default: current directory)
+        #[arg(default_value = ".")]
+        path: String,
+
+        /// Show brief summary only
+        #[arg(short, long)]
+        summary: bool,
+
+        /// Interactive mode - select changes to apply
+        #[arg(short, long)]
+        interactive: bool
     },
 
     /// Display beautiful help with examples and usage
@@ -221,6 +239,78 @@ mod tests {
         match quality.command {
             Command::Help => {}
             _ => panic!("Expected Help command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, ".");
+                assert!(!summary);
+                assert!(!interactive);
+            }
+            _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff_summary() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff", "--summary"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, ".");
+                assert!(summary);
+                assert!(!interactive);
+            }
+            _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff_interactive() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff", "--interactive"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, ".");
+                assert!(!summary);
+                assert!(interactive);
+            }
+            _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff_with_path() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff", "src/"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, "src/");
+                assert!(!summary);
+                assert!(!interactive);
+            }
+            _ => panic!("Expected Diff command")
         }
     }
 }

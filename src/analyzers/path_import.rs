@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-License-Identifier: MIT
+
 //! Path import analyzer for detecting inline path usage.
 //!
 //! This analyzer identifies module paths with `::` that should be moved to
