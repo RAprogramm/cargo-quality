@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-License-Identifier: MIT
+
 use owo_colors::{OwoColorize, colors::*};
 
 pub fn display_help() {
@@ -101,6 +104,31 @@ pub fn display_help() {
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo quality fmt".fg::<Cyan>().italic()
+    );
+
+    println!(
+        "\n  {} {}",
+        "diff".fg::<Green>().bold(),
+        "[PATH]".fg::<Magenta>()
+    );
+    println!(
+        "    {} Show proposed changes before applying",
+        "→".fg::<Blue>()
+    );
+    println!(
+        "    {} {}",
+        "OPTIONS:".fg::<Blue>().dimmed(),
+        "--summary, -s | --interactive, -i".fg::<Magenta>()
+    );
+    println!(
+        "    {} {}",
+        "MODES:".fg::<Blue>().dimmed(),
+        "full (default), summary, interactive".fg::<Magenta>()
+    );
+    println!(
+        "    {} {}",
+        "EXAMPLE:".fg::<Blue>().dimmed(),
+        "cargo quality diff --summary".fg::<Cyan>().italic()
     );
 
     println!("\n  {}", "help".fg::<Green>().bold());
@@ -222,7 +250,7 @@ pub fn display_help() {
     );
     println!(
         "{}",
-        "           Made with ♥ for the Rust community                      "
+        "              Professional Rust Quality Tooling                    "
             .fg::<Cyan>()
             .italic()
     );

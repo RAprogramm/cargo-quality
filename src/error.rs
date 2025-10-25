@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-License-Identifier: MIT
+
 //! Error types for cargo-quality operations.
 //!
 //! All errors convert to `masterror::AppError` for consistent error handling.

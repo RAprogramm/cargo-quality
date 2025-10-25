@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-License-Identifier: MIT
+
 //! Report formatting for analysis results.
 //!
 //! Provides structured output of quality issues found during analysis,
@@ -202,5 +205,71 @@ mod tests {
         let output = format!("{}", report);
         assert!(output.contains("10:5 - Warning message"));
         assert!(!output.contains("Suggestion:"));
+    }
+
+    #[test]
+    fn test_report_multiple_analyzers() {
+        let mut report = Report::new("code.rs".to_string());
+
+        let issue1 = Issue {
+            line:       1,
+            column:     1,
+            message:    "Issue 1".to_string(),
+            suggestion: Some("Fix 1".to_string())
+        };
+
+        let issue2 = Issue {
+            line:       2,
+            column:     2,
+            message:    "Issue 2".to_string(),
+            suggestion: None
+        };
+
+        report.add_result(
+            "analyzer1".to_string(),
+            AnalysisResult {
+                issues:        vec![issue1],
+                fixable_count: 1
+            }
+        );
+
+        report.add_result(
+            "analyzer2".to_string(),
+            AnalysisResult {
+                issues:        vec![issue2],
+                fixable_count: 0
+            }
+        );
+
+        assert_eq!(report.total_issues(), 2);
+        assert_eq!(report.total_fixable(), 1);
+
+        let output = format!("{}", report);
+        assert!(output.contains("analyzer1"));
+        assert!(output.contains("analyzer2"));
+        assert!(output.contains("Total issues: 2"));
+    }
+
+    #[test]
+    fn test_report_total_fixable() {
+        let mut report = Report::new("test.rs".to_string());
+
+        report.add_result(
+            "analyzer1".to_string(),
+            AnalysisResult {
+                issues:        vec![],
+                fixable_count: 3
+            }
+        );
+
+        report.add_result(
+            "analyzer2".to_string(),
+            AnalysisResult {
+                issues:        vec![],
+                fixable_count: 2
+            }
+        );
+
+        assert_eq!(report.total_fixable(), 5);
     }
 }

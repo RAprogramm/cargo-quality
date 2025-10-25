@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-License-Identifier: MIT
+
 //! Command-line interface definitions using clap.
 //!
 //! Defines the CLI structure for cargo-quality with support for check, fix,
@@ -72,6 +75,21 @@ pub enum Command {
         path: String
     },
 
+    /// Show diff of proposed changes before applying
+    Diff {
+        /// Path to analyze (default: current directory)
+        #[arg(default_value = ".")]
+        path: String,
+
+        /// Show brief summary only
+        #[arg(short, long)]
+        summary: bool,
+
+        /// Interactive mode - select changes to apply
+        #[arg(short, long)]
+        interactive: bool
+    },
+
     /// Display beautiful help with examples and usage
     Help
 }
@@ -86,6 +104,25 @@ impl QualityArgs {
     /// Parsed `QualityArgs` with selected subcommand
     pub fn parse_args() -> Self {
         let CargoCli::Quality(args) = CargoCli::parse();
+        args
+    }
+
+    /// Parse from iterator (for testing).
+    ///
+    /// # Arguments
+    ///
+    /// * `iter` - Iterator over argument strings
+    ///
+    /// # Returns
+    ///
+    /// Parsed `QualityArgs` with selected subcommand
+    #[cfg(test)]
+    pub fn parse_from_iter<I, T>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<std::ffi::OsString> + Clone
+    {
+        let CargoCli::Quality(args) = CargoCli::parse_from(iter);
         args
     }
 }
@@ -221,6 +258,93 @@ mod tests {
         match quality.command {
             Command::Help => {}
             _ => panic!("Expected Help command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, ".");
+                assert!(!summary);
+                assert!(!interactive);
+            }
+            _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff_summary() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff", "--summary"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, ".");
+                assert!(summary);
+                assert!(!interactive);
+            }
+            _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff_interactive() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff", "--interactive"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, ".");
+                assert!(!summary);
+                assert!(interactive);
+            }
+            _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_diff_with_path() {
+        let args = CargoCli::parse_from(["cargo", "quality", "diff", "src/"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Diff {
+                path,
+                summary,
+                interactive
+            } => {
+                assert_eq!(path, "src/");
+                assert!(!summary);
+                assert!(!interactive);
+            }
+            _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_quality_args_parse_from_iter() {
+        let args = QualityArgs::parse_from_iter(["cargo", "quality", "check", "--verbose"]);
+        match args.command {
+            Command::Check {
+                path,
+                verbose
+            } => {
+                assert_eq!(path, ".");
+                assert!(verbose);
+            }
+            _ => panic!("Expected Check command")
         }
     }
 }
