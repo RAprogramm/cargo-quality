@@ -1,0 +1,29 @@
+[package]
+name = "cargo-quality"
+version = "0.1.0"
+edition = "2024"
+authors = ["RAprogramm <andrey.rozanov.vl@gmail.com>"]
+description = "Cargo tool for Rust code quality analysis and fixes"
+license = "MIT"
+repository = "https://github.com/RAprogramm/cargo-quality"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+syn = { version = "2", features = ["full", "extra-traits", "visit", "visit-mut"] }
+quote = "1"
+proc-macro2 = "1"
+masterror = "0.24"
+walkdir = "2"
+prettyplease = "0.2"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[[bin]]
+name = "cargo-quality"
+path = "src/main.rs"

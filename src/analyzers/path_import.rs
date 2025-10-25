@@ -1,0 +1,270 @@
+use masterror::AppResult;
+use quote::ToTokens;
+use syn::{
+    visit::Visit,
+    visit_mut::{self, VisitMut},
+    ExprMethodCall, ExprPath, File, Path
+};
+
+use crate::analyzer::{AnalysisResult, Analyzer, Issue};
+
+/// Analyzer for detecting path separators that should be imports
+pub struct PathImportAnalyzer;
+
+impl PathImportAnalyzer {
+    pub fn new() -> Self {
+        Self
+    }
+
+    fn should_extract_to_import(path: &Path) -> bool {
+        if path.segments.len() < 2 {
+            return false;
+        }
+
+        let first_segment = match path.segments.first() {
+            Some(seg) => seg,
+            None => return false
+        };
+
+        let first_name = first_segment.ident.to_string();
+
+        let first_char = match first_name.chars().next() {
+            Some(c) => c,
+            None => return false
+        };
+
+        if first_char.is_uppercase() {
+            return false;
+        }
+
+        let last_segment = match path.segments.last() {
+            Some(seg) => seg,
+            None => return false
+        };
+
+        let last_name = last_segment.ident.to_string();
+
+        if Self::is_screaming_snake_case(&last_name) {
+            return false;
+        }
+
+        let last_first_char = match last_name.chars().next() {
+            Some(c) => c,
+            None => return false
+        };
+
+        if last_first_char.is_uppercase() {
+            return false;
+        }
+
+        if Self::is_stdlib_root(&first_name) {
+            return true;
+        }
+
+        if path.segments.len() >= 3 && first_char.is_lowercase() {
+            return true;
+        }
+
+        false
+    }
+
+    fn is_screaming_snake_case(s: &str) -> bool {
+        s.chars().all(|c| c.is_uppercase() || c == '_' || c.is_numeric())
+    }
+
+    fn is_stdlib_root(name: &str) -> bool {
+        matches!(name, "std" | "core" | "alloc")
+    }
+}
+
+impl Analyzer for PathImportAnalyzer {
+    fn name(&self) -> &'static str {
+        "path_import"
+    }
+
+    fn analyze(&self, ast: &File) -> AppResult<AnalysisResult> {
+        let mut visitor = PathVisitor { issues: Vec::new() };
+        visitor.visit_file(&mut ast.clone());
+
+        let fixable_count = visitor.issues.len();
+
+        Ok(AnalysisResult { issues: visitor.issues, fixable_count })
+    }
+
+    fn fix(&self, ast: &mut File) -> AppResult<usize> {
+        let mut fixer = PathFixer { fixed_count: 0 };
+        fixer.visit_file_mut(ast);
+        Ok(fixer.fixed_count)
+    }
+}
+
+struct PathVisitor {
+    issues: Vec<Issue>
+}
+
+impl PathVisitor {
+    fn check_path(&mut self, path: &Path) {
+        if PathImportAnalyzer::should_extract_to_import(path) {
+            self.issues.push(Issue {
+                line: 0,
+                column: 0,
+                message: format!("Use import instead of path: {}", path.to_token_stream()),
+                suggestion: Some(format!("use {};", path.to_token_stream()))
+            });
+        }
+    }
+}
+
+impl<'ast> syn::visit::Visit<'ast> for PathVisitor {
+    fn visit_expr_path(&mut self, node: &'ast ExprPath) {
+        self.check_path(&node.path);
+        syn::visit::visit_expr_path(self, node);
+    }
+}
+
+struct PathFixer {
+    fixed_count: usize
+}
+
+impl VisitMut for PathFixer {
+    fn visit_expr_method_call_mut(&mut self, node: &mut ExprMethodCall) {
+        visit_mut::visit_expr_method_call_mut(self, node);
+    }
+}
+
+impl Default for PathImportAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    use super::*;
+
+    #[test]
+    fn test_analyzer_name() {
+        let analyzer = PathImportAnalyzer::new();
+        assert_eq!(analyzer.name(), "path_import");
+    }
+
+    #[test]
+    fn test_detect_path_separator() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let content = std::fs::read_to_string("file.txt");
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() > 0);
+    }
+
+    #[test]
+    fn test_ignore_enum_variants() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let err = AppError::NotFound;
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_detect_stdlib_free_functions() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let content = std::fs::read_to_string("file.txt");
+                let result = std::io::stdin();
+                let data = core::mem::size_of::<u32>();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 3);
+    }
+
+    #[test]
+    fn test_ignore_associated_functions() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let v = Vec::new();
+                let s = String::from("hello");
+                let p = PathBuf::from("/path");
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_ignore_option_result_variants() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let x = Option::Some(42);
+                let y = Option::None;
+                let ok = Result::Ok(1);
+                let err = Result::Err("error");
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_ignore_associated_constants() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let max = u32::MAX;
+                let min = i64::MIN;
+                let pi = f64::consts::PI;
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_detect_module_paths_3plus_segments() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let handle = tokio::runtime::Runtime::new();
+                let client = reqwest::blocking::Client::new();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() >= 2);
+    }
+
+    #[test]
+    fn test_mixed_scenarios() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let content = std::fs::read_to_string("file.txt");
+                let v = Vec::new();
+                let opt = Option::Some(42);
+                let max = u32::MAX;
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 1);
+    }
+
+}
