@@ -391,4 +391,74 @@ mod tests {
         let result = analyzer.analyze(&code).unwrap();
         assert!(result.issues.len() > 0);
     }
+
+    #[test]
+    fn test_two_segment_path() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let x = fs::read("file");
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_screaming_snake_case_constant() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let x = some::module::MAX_VALUE;
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_path_with_generics() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let v: std::vec::Vec<i32> = std::vec::Vec::new();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() >= 1);
+    }
+
+    #[test]
+    fn test_result_fixable_count() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let a = std::fs::read_to_string("f");
+                let b = std::io::stdin();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.fixable_count, result.issues.len());
+    }
+
+    #[test]
+    fn test_issue_format() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let x = std::fs::read("file");
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() > 0);
+        let issue = &result.issues[0];
+        assert!(issue.message.contains("Use import instead of path"));
+        assert!(issue.suggestion.is_some());
+        assert!(issue.suggestion.as_ref().unwrap().contains("use"));
+    }
 }

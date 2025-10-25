@@ -482,4 +482,184 @@ mod tests {
         let result = DiffResult::new();
         show_full(&result);
     }
+
+    #[test]
+    fn test_show_summary_with_data() {
+        let mut result = DiffResult::new();
+        let mut file_diff = FileDiff::new("test.rs".to_string());
+
+        let entry1 = DiffEntry {
+            line:        1,
+            analyzer:    "test_analyzer".to_string(),
+            original:    "old line".to_string(),
+            modified:    "new line".to_string(),
+            description: "test change".to_string()
+        };
+
+        let entry2 = DiffEntry {
+            line:        2,
+            analyzer:    "test_analyzer".to_string(),
+            original:    "old line 2".to_string(),
+            modified:    "new line 2".to_string(),
+            description: "test change 2".to_string()
+        };
+
+        file_diff.add_entry(entry1);
+        file_diff.add_entry(entry2);
+        result.add_file(file_diff);
+
+        show_summary(&result);
+    }
+
+    #[test]
+    fn test_show_full_with_data() {
+        let mut result = DiffResult::new();
+        let mut file_diff = FileDiff::new("test.rs".to_string());
+
+        let entry = DiffEntry {
+            line:        10,
+            analyzer:    "format_args".to_string(),
+            original:    "println!(\"Hello {}\", name)".to_string(),
+            modified:    "println!(\"Hello {name}\")".to_string(),
+            description: "Use named arguments".to_string()
+        };
+
+        file_diff.add_entry(entry);
+        result.add_file(file_diff);
+
+        show_full(&result);
+    }
+
+    #[test]
+    fn test_collect_files_single_file() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(&file_path, "fn main() {}").unwrap();
+
+        let result = collect_files(file_path.to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_collect_files_directory() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("test1.rs");
+        let file2 = temp_dir.path().join("test2.rs");
+        let file3 = temp_dir.path().join("test.txt");
+
+        std::fs::write(&file1, "fn test1() {}").unwrap();
+        std::fs::write(&file2, "fn test2() {}").unwrap();
+        std::fs::write(&file3, "not rust").unwrap();
+
+        let result = collect_files(temp_dir.path().to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_collect_files_empty_dir() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let result = collect_files(temp_dir.path().to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_collect_files_non_rust() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        std::fs::write(&file_path, "not rust").unwrap();
+
+        let result = collect_files(file_path.to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_generate_diff_integration() {
+        use tempfile::TempDir;
+
+        use crate::analyzers::get_analyzers;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
+
+        let analyzers = get_analyzers();
+        let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
+
+        assert!(result.is_ok());
+        let file_diff = result.unwrap();
+        assert!(!file_diff.entries.is_empty());
+    }
+
+    #[test]
+    fn test_generate_diff_no_issues() {
+        use tempfile::TempDir;
+
+        use crate::analyzers::get_analyzers;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(&file_path, "fn main() {}").unwrap();
+
+        let analyzers = get_analyzers();
+        let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_diff_invalid_syntax() {
+        use tempfile::TempDir;
+
+        use crate::analyzers::get_analyzers;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(&file_path, "fn main() { invalid syntax +++").unwrap();
+
+        let analyzers = get_analyzers();
+        let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_diff_result_multiple_files() {
+        let mut result = DiffResult::new();
+
+        let mut file1 = FileDiff::new("file1.rs".to_string());
+        file1.add_entry(DiffEntry {
+            line:        1,
+            analyzer:    "test".to_string(),
+            original:    "old".to_string(),
+            modified:    "new".to_string(),
+            description: "desc".to_string()
+        });
+
+        let mut file2 = FileDiff::new("file2.rs".to_string());
+        file2.add_entry(DiffEntry {
+            line:        1,
+            analyzer:    "test".to_string(),
+            original:    "old".to_string(),
+            modified:    "new".to_string(),
+            description: "desc".to_string()
+        });
+
+        result.add_file(file1);
+        result.add_file(file2);
+
+        assert_eq!(result.total_files(), 2);
+        assert_eq!(result.total_changes(), 2);
+    }
 }

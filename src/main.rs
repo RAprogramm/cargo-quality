@@ -455,4 +455,52 @@ mod tests {
         let result = format_quality(temp_dir.path().to_str().unwrap());
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_run_diff_full() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
+
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_run_diff_summary() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
+
+        let result = run_diff(temp_dir.path().to_str().unwrap(), true, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_run_diff_no_changes() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() {}").unwrap();
+
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_run_diff_parse_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() { invalid +++").unwrap();
+
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false);
+        assert!(result.is_err());
+    }
 }

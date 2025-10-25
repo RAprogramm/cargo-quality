@@ -106,6 +106,25 @@ impl QualityArgs {
         let CargoCli::Quality(args) = CargoCli::parse();
         args
     }
+
+    /// Parse from iterator (for testing).
+    ///
+    /// # Arguments
+    ///
+    /// * `iter` - Iterator over argument strings
+    ///
+    /// # Returns
+    ///
+    /// Parsed `QualityArgs` with selected subcommand
+    #[cfg(test)]
+    pub fn parse_from_iter<I, T>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<std::ffi::OsString> + Clone
+    {
+        let CargoCli::Quality(args) = CargoCli::parse_from(iter);
+        args
+    }
 }
 
 #[cfg(test)]
@@ -311,6 +330,21 @@ mod tests {
                 assert!(!interactive);
             }
             _ => panic!("Expected Diff command")
+        }
+    }
+
+    #[test]
+    fn test_quality_args_parse_from_iter() {
+        let args = QualityArgs::parse_from_iter(["cargo", "quality", "check", "--verbose"]);
+        match args.command {
+            Command::Check {
+                path,
+                verbose
+            } => {
+                assert_eq!(path, ".");
+                assert!(verbose);
+            }
+            _ => panic!("Expected Check command")
         }
     }
 }
