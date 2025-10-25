@@ -1,32 +1,61 @@
+//! Report formatting for analysis results.
+//!
+//! Provides structured output of quality issues found during analysis,
+//! grouping results by analyzer and file.
+
 use std::fmt;
 
 use crate::analyzer::AnalysisResult;
 
-/// Report formatter for analysis results
+/// Report formatter for analysis results.
+///
+/// Aggregates results from multiple analyzers for a single file and
+/// provides formatted output with issue counts and suggestions.
 pub struct Report {
-    /// File path
+    /// File path being analyzed
     pub file_path: String,
-    /// Analysis results by analyzer
+    /// Analysis results grouped by analyzer name
     pub results: Vec<(String, AnalysisResult)>
 }
 
 impl Report {
-    /// Create new report
+    /// Create new report for a file.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - Path to file being analyzed
+    ///
+    /// # Returns
+    ///
+    /// Empty report ready to accumulate results
     pub fn new(file_path: String) -> Self {
         Self { file_path, results: Vec::new() }
     }
 
-    /// Add analysis result
+    /// Add analysis result from an analyzer.
+    ///
+    /// # Arguments
+    ///
+    /// * `analyzer_name` - Name of analyzer that produced results
+    /// * `result` - Analysis result to add
     pub fn add_result(&mut self, analyzer_name: String, result: AnalysisResult) {
         self.results.push((analyzer_name, result));
     }
 
-    /// Total issues count
+    /// Calculate total issues across all analyzers.
+    ///
+    /// # Returns
+    ///
+    /// Sum of all issues found
     pub fn total_issues(&self) -> usize {
         self.results.iter().map(|(_, r)| r.issues.len()).sum()
     }
 
-    /// Total fixable issues count
+    /// Calculate total fixable issues across all analyzers.
+    ///
+    /// # Returns
+    ///
+    /// Sum of all fixable issues
     pub fn total_fixable(&self) -> usize {
         self.results.iter().map(|(_, r)| r.fixable_count).sum()
     }

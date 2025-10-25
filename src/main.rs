@@ -1,3 +1,23 @@
+//! Cargo quality analysis tool for Rust code.
+//!
+//! This binary provides a command-line interface for analyzing and improving
+//! Rust code quality according to project standards. It detects common issues
+//! and suggests or applies fixes automatically.
+//!
+//! # Available Commands
+//!
+//! - `cargo quality check` - Analyze code without modifications
+//! - `cargo quality fix` - Apply automatic fixes
+//! - `cargo quality format` - Format code according to quality rules
+//!
+//! # Examples
+//!
+//! ```bash
+//! cargo quality check src/
+//! cargo quality fix --dry-run src/
+//! cargo quality format .
+//! ```
+
 use std::{fs, path::PathBuf};
 
 use masterror::AppResult;
@@ -28,6 +48,26 @@ fn main() -> AppResult<()> {
     Ok(())
 }
 
+/// Check code quality without modifying files.
+///
+/// Analyzes all Rust files in the specified path and reports issues found
+/// by each analyzer. Prints detailed reports for files with issues.
+///
+/// # Arguments
+///
+/// * `path` - File or directory path to analyze
+/// * `verbose` - Print confirmation for files without issues
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if analysis completes, error on IO or parse failures
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_quality::check_quality;
+/// check_quality("src/", true).unwrap();
+/// ```
 fn check_quality(path: &str, verbose: bool) -> AppResult<()> {
     let files = collect_rust_files(path)?;
     let analyzers = get_analyzers();
@@ -53,6 +93,27 @@ fn check_quality(path: &str, verbose: bool) -> AppResult<()> {
     Ok(())
 }
 
+/// Fix quality issues automatically.
+///
+/// Applies automatic fixes from all analyzers to Rust files in the specified path.
+/// Can run in dry-run mode to preview changes without modifying files.
+///
+/// # Arguments
+///
+/// * `path` - File or directory path to fix
+/// * `dry_run` - If true, report fixes but do not modify files
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if fixes applied successfully, error on IO or parse failures
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_quality::fix_quality;
+/// fix_quality("src/", true).unwrap();
+/// fix_quality("src/", false).unwrap();
+/// ```
 fn fix_quality(path: &str, dry_run: bool) -> AppResult<()> {
     let files = collect_rust_files(path)?;
     let analyzers = get_analyzers();
@@ -81,10 +142,40 @@ fn fix_quality(path: &str, dry_run: bool) -> AppResult<()> {
     Ok(())
 }
 
+/// Format code according to quality rules.
+///
+/// Wrapper around `fix_quality` that applies all fixes without dry-run mode.
+///
+/// # Arguments
+///
+/// * `path` - File or directory path to format
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if formatting succeeds, error otherwise
 fn format_quality(path: &str) -> AppResult<()> {
     fix_quality(path, false)
 }
 
+/// Collect all Rust source files from a path.
+///
+/// Recursively walks directories to find all `.rs` files. Follows symbolic links.
+///
+/// # Arguments
+///
+/// * `path` - File or directory path to search
+///
+/// # Returns
+///
+/// `AppResult<Vec<PathBuf>>` - List of Rust file paths found
+///
+/// # Examples
+///
+/// ```no_run
+/// use cargo_quality::collect_rust_files;
+/// let files = collect_rust_files("src/").unwrap();
+/// assert!(files.len() > 0);
+/// ```
 fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let path_buf = PathBuf::from(path);

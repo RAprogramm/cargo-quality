@@ -1,3 +1,12 @@
+//! Path import analyzer for detecting inline path usage.
+//!
+//! This analyzer identifies module paths with `::` that should be moved to
+//! import statements. It distinguishes between:
+//! - Free functions from modules (should be imported)
+//! - Associated functions on types (should NOT be imported)
+//! - Enum variants (should NOT be imported)
+//! - Associated constants (should NOT be imported)
+
 use masterror::AppResult;
 use quote::ToTokens;
 use syn::{
@@ -8,14 +17,42 @@ use syn::{
 
 use crate::analyzer::{AnalysisResult, Analyzer, Issue};
 
-/// Analyzer for detecting path separators that should be imports
+/// Analyzer for detecting path separators that should be imports.
+///
+/// Detects module-level function calls using `::` syntax that should be
+/// converted to proper import statements for cleaner, more idiomatic code.
+///
+/// # Examples
+///
+/// Detects this pattern:
+/// ```ignore
+/// let content = std::fs::read_to_string("file.txt");
+/// ```
+///
+/// Suggests:
+/// ```ignore
+/// use std::fs::read_to_string;
+/// let content = read_to_string("file.txt");
+/// ```
 pub struct PathImportAnalyzer;
 
 impl PathImportAnalyzer {
+    /// Create new path import analyzer instance.
     pub fn new() -> Self {
         Self
     }
 
+    /// Determine if path should be extracted to import statement.
+    ///
+    /// Analyzes path segments to distinguish module paths from type paths.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Syntax path to analyze
+    ///
+    /// # Returns
+    ///
+    /// `true` if path represents free function that should be imported
     fn should_extract_to_import(path: &Path) -> bool {
         if path.segments.len() < 2 {
             return false;
@@ -68,10 +105,28 @@ impl PathImportAnalyzer {
         false
     }
 
+    /// Check if identifier is SCREAMING_SNAKE_CASE constant.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - Identifier string to check
+    ///
+    /// # Returns
+    ///
+    /// `true` if all characters are uppercase, underscore, or numeric
     fn is_screaming_snake_case(s: &str) -> bool {
         s.chars().all(|c| c.is_uppercase() || c == '_' || c.is_numeric())
     }
 
+    /// Check if name is standard library root module.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Module name to check
+    ///
+    /// # Returns
+    ///
+    /// `true` if name is `std`, `core`, or `alloc`
     fn is_stdlib_root(name: &str) -> bool {
         matches!(name, "std" | "core" | "alloc")
     }
