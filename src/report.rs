@@ -127,4 +127,63 @@ mod tests {
         assert_eq!(report.total_issues(), 1);
         assert_eq!(report.total_fixable(), 1);
     }
+
+    #[test]
+    fn test_report_display_with_issues() {
+        let mut report = Report::new("test.rs".to_string());
+
+        let issue = Issue {
+            line: 42,
+            column: 15,
+            message: "Test issue".to_string(),
+            suggestion: Some("Fix suggestion".to_string())
+        };
+
+        let result = AnalysisResult { issues: vec![issue], fixable_count: 1 };
+
+        report.add_result("test_analyzer".to_string(), result);
+
+        let output = format!("{}", report);
+        assert!(output.contains("Quality report for: test.rs"));
+        assert!(output.contains("test_analyzer"));
+        assert!(output.contains("42:15 - Test issue"));
+        assert!(output.contains("Suggestion: Fix suggestion"));
+        assert!(output.contains("Total issues: 1"));
+        assert!(output.contains("Fixable: 1"));
+    }
+
+    #[test]
+    fn test_report_display_without_issues() {
+        let mut report = Report::new("test.rs".to_string());
+
+        let result = AnalysisResult { issues: vec![], fixable_count: 0 };
+
+        report.add_result("empty_analyzer".to_string(), result);
+
+        let output = format!("{}", report);
+        assert!(output.contains("Quality report for: test.rs"));
+        assert!(!output.contains("empty_analyzer"));
+        assert!(output.contains("Total issues: 0"));
+        assert!(output.contains("Fixable: 0"));
+    }
+
+    #[test]
+    fn test_report_display_issue_without_suggestion() {
+        let mut report = Report::new("file.rs".to_string());
+
+        let issue = Issue {
+            line: 10,
+            column: 5,
+            message: "Warning message".to_string(),
+            suggestion: None
+        };
+
+        let result = AnalysisResult { issues: vec![issue], fixable_count: 0 };
+
+        report.add_result("warn_analyzer".to_string(), result);
+
+        let output = format!("{}", report);
+        assert!(output.contains("10:5 - Warning message"));
+        assert!(!output.contains("Suggestion:"));
+    }
 }

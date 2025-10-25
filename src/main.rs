@@ -199,12 +199,162 @@ fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+
     use super::*;
 
     #[test]
     fn test_collect_rust_files_empty_dir() {
         let temp_dir = std::env::temp_dir();
         let result = collect_rust_files(temp_dir.to_str().unwrap());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_collect_rust_files_single_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() {}").unwrap();
+
+        let result = collect_rust_files(file_path.to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], file_path);
+    }
+
+    #[test]
+    fn test_collect_rust_files_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let file1 = temp_dir.path().join("file1.rs");
+        let file2 = temp_dir.path().join("file2.rs");
+        let file3 = temp_dir.path().join("file.txt");
+
+        fs::write(&file1, "fn test1() {}").unwrap();
+        fs::write(&file2, "fn test2() {}").unwrap();
+        fs::write(&file3, "not rust").unwrap();
+
+        let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_check_quality() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() { let x = std::fs::read_to_string(\"f\"); }").unwrap();
+
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_quality_verbose() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("clean.rs");
+        fs::write(&file_path, "fn main() {}").unwrap();
+
+        let result = check_quality(temp_dir.path().to_str().unwrap(), true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_fix_quality_dry_run() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() {}").unwrap();
+
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_format_quality() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() {}").unwrap();
+
+        let result = format_quality(temp_dir.path().to_str().unwrap());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_collect_rust_files_non_rust_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        fs::write(&file_path, "not rust").unwrap();
+
+        let result = collect_rust_files(file_path.to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_check_quality_parse_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("bad.rs");
+        fs::write(&file_path, "fn main() { invalid rust syntax +++").unwrap();
+
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fix_quality_parse_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("bad.rs");
+        fs::write(&file_path, "fn main() { invalid rust +++").unwrap();
+
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fix_quality_with_fixes() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() { let x = std::fs::read_to_string(\"f\"); }").unwrap();
+
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_collect_rust_files_nested_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let nested_dir = temp_dir.path().join("src").join("nested");
+        fs::create_dir_all(&nested_dir).unwrap();
+
+        let file1 = temp_dir.path().join("test.rs");
+        let file2 = nested_dir.join("nested.rs");
+
+        fs::write(&file1, "fn test1() {}").unwrap();
+        fs::write(&file2, "fn test2() {}").unwrap();
+
+        let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_check_quality_no_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_fix_quality_no_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_format_quality_with_changes() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, "fn main() { let x = std::fs::read_to_string(\"f\"); }").unwrap();
+
+        let result = format_quality(temp_dir.path().to_str().unwrap());
         assert!(result.is_ok());
     }
 }

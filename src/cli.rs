@@ -86,41 +86,76 @@ mod tests {
     #[test]
     fn test_cli_parsing_check() {
         let args = CargoCli::parse_from(["cargo", "quality", "check", "src"]);
-        if let CargoCli::Quality(quality) = args {
-            match quality.command {
-                Command::Check { path, verbose } => {
-                    assert_eq!(path, "src");
-                    assert!(!verbose);
-                }
-                _ => panic!("Expected Check command")
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Check { path, verbose } => {
+                assert_eq!(path, "src");
+                assert!(!verbose);
             }
+            _ => panic!("Expected Check command")
         }
     }
 
     #[test]
     fn test_cli_parsing_fix() {
         let args = CargoCli::parse_from(["cargo", "quality", "fix", "--dry-run"]);
-        if let CargoCli::Quality(quality) = args {
-            match quality.command {
-                Command::Fix { path, dry_run } => {
-                    assert_eq!(path, ".");
-                    assert!(dry_run);
-                }
-                _ => panic!("Expected Fix command")
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Fix { path, dry_run } => {
+                assert_eq!(path, ".");
+                assert!(dry_run);
             }
+            _ => panic!("Expected Fix command")
         }
     }
 
     #[test]
     fn test_cli_parsing_format() {
         let args = CargoCli::parse_from(["cargo", "quality", "format"]);
-        if let CargoCli::Quality(quality) = args {
-            match quality.command {
-                Command::Format { path } => {
-                    assert_eq!(path, ".");
-                }
-                _ => panic!("Expected Format command")
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Format { path } => {
+                assert_eq!(path, ".");
             }
+            _ => panic!("Expected Format command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_check_verbose() {
+        let args = CargoCli::parse_from(["cargo", "quality", "check", "--verbose"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Check { path, verbose } => {
+                assert_eq!(path, ".");
+                assert!(verbose);
+            }
+            _ => panic!("Expected Check command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_fix_no_dry_run() {
+        let args = CargoCli::parse_from(["cargo", "quality", "fix"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Fix { path, dry_run } => {
+                assert_eq!(path, ".");
+                assert!(!dry_run);
+            }
+            _ => panic!("Expected Fix command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_format_with_path() {
+        let args = CargoCli::parse_from(["cargo", "quality", "format", "src/"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Format { path } => {
+                assert_eq!(path, "src/");
+            }
+            _ => panic!("Expected Format command")
         }
     }
 }

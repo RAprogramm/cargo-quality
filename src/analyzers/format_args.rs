@@ -141,4 +141,79 @@ mod tests {
         let result = analyzer.analyze(&code).unwrap();
         assert!(result.issues.len() > 0);
     }
+
+    #[test]
+    fn test_detect_print_macro() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                print!("Value: {}", 42);
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() > 0);
+    }
+
+    #[test]
+    fn test_detect_write_macro() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                use std::io::Write;
+                let mut buf = Vec::new();
+                write!(&mut buf, "Value: {}", 42).unwrap();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() > 0);
+    }
+
+    #[test]
+    fn test_detect_writeln_macro() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                use std::io::Write;
+                let mut buf = Vec::new();
+                writeln!(&mut buf, "Value: {}", 42).unwrap();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() > 0);
+    }
+
+    #[test]
+    fn test_fix_returns_zero() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let mut code: File = parse_quote! {
+            fn main() {
+                println!("Hello {}", "world");
+            }
+        };
+
+        let fixed = analyzer.fix(&mut code).unwrap();
+        assert_eq!(fixed, 0);
+    }
+
+    #[test]
+    fn test_default_implementation() {
+        let analyzer = FormatArgsAnalyzer::default();
+        assert_eq!(analyzer.name(), "format_args");
+    }
+
+    #[test]
+    fn test_format_without_args() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                println!("Hello world");
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
 }

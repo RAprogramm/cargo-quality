@@ -322,4 +322,63 @@ mod tests {
         assert_eq!(result.issues.len(), 1);
     }
 
+    #[test]
+    fn test_fix_returns_zero() {
+        let analyzer = PathImportAnalyzer::new();
+        let mut code: File = parse_quote! {
+            fn main() {
+                let content = std::fs::read_to_string("file.txt");
+            }
+        };
+
+        let fixed = analyzer.fix(&mut code).unwrap();
+        assert_eq!(fixed, 0);
+    }
+
+    #[test]
+    fn test_default_implementation() {
+        let analyzer = PathImportAnalyzer::default();
+        assert_eq!(analyzer.name(), "path_import");
+    }
+
+    #[test]
+    fn test_single_segment_path() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                println!("test");
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_core_module_functions() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                let size = core::mem::size_of::<u32>();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() > 0);
+    }
+
+    #[test]
+    fn test_alloc_module_functions() {
+        let analyzer = PathImportAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                use alloc::vec;
+                let v = alloc::vec::Vec::new();
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert!(result.issues.len() > 0);
+    }
+
 }

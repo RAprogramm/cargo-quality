@@ -96,3 +96,36 @@ impl FileNotFoundError {
         Self { path }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::*;
+
+    #[test]
+    fn test_io_error_from_std_io() {
+        let std_err = io::Error::new(io::ErrorKind::NotFound, "file not found");
+        let io_error = IoError::from(std_err);
+        let _app_error: AppError = io_error.into();
+    }
+
+    #[test]
+    fn test_parse_error_from_syn() {
+        let syn_err = syn::Error::new(proc_macro2::Span::call_site(), "parse failed");
+        let parse_error = ParseError::from(syn_err);
+        let _app_error: AppError = parse_error.into();
+    }
+
+    #[test]
+    fn test_invalid_config_error_new() {
+        let config_err = InvalidConfigError::new("invalid setting".to_string());
+        let _app_error: AppError = config_err.into();
+    }
+
+    #[test]
+    fn test_file_not_found_error_new() {
+        let not_found_err = FileNotFoundError::new("/path/to/file.rs".to_string());
+        let _app_error: AppError = not_found_err.into();
+    }
+}
