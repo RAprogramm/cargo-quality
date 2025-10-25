@@ -21,6 +21,7 @@ pub enum CargoCli {
 /// Main argument structure containing the subcommand to execute.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+#[command(disable_help_flag = true, disable_help_subcommand = true)]
 pub struct QualityArgs {
     /// Subcommand to execute
     #[command(subcommand)]
@@ -62,7 +63,17 @@ pub enum Command {
         /// Path to analyze (default: current directory)
         #[arg(default_value = ".")]
         path: String
-    }
+    },
+
+    /// Format code using cargo +nightly fmt with project configuration
+    Fmt {
+        /// Path to format (default: current directory)
+        #[arg(default_value = ".")]
+        path: String
+    },
+
+    /// Display beautiful help with examples and usage
+    Help
 }
 
 impl QualityArgs {
@@ -88,7 +99,10 @@ mod tests {
         let args = CargoCli::parse_from(["cargo", "quality", "check", "src"]);
         let CargoCli::Quality(quality) = args;
         match quality.command {
-            Command::Check { path, verbose } => {
+            Command::Check {
+                path,
+                verbose
+            } => {
                 assert_eq!(path, "src");
                 assert!(!verbose);
             }
@@ -101,7 +115,10 @@ mod tests {
         let args = CargoCli::parse_from(["cargo", "quality", "fix", "--dry-run"]);
         let CargoCli::Quality(quality) = args;
         match quality.command {
-            Command::Fix { path, dry_run } => {
+            Command::Fix {
+                path,
+                dry_run
+            } => {
                 assert_eq!(path, ".");
                 assert!(dry_run);
             }
@@ -114,7 +131,9 @@ mod tests {
         let args = CargoCli::parse_from(["cargo", "quality", "format"]);
         let CargoCli::Quality(quality) = args;
         match quality.command {
-            Command::Format { path } => {
+            Command::Format {
+                path
+            } => {
                 assert_eq!(path, ".");
             }
             _ => panic!("Expected Format command")
@@ -126,7 +145,10 @@ mod tests {
         let args = CargoCli::parse_from(["cargo", "quality", "check", "--verbose"]);
         let CargoCli::Quality(quality) = args;
         match quality.command {
-            Command::Check { path, verbose } => {
+            Command::Check {
+                path,
+                verbose
+            } => {
                 assert_eq!(path, ".");
                 assert!(verbose);
             }
@@ -139,7 +161,10 @@ mod tests {
         let args = CargoCli::parse_from(["cargo", "quality", "fix"]);
         let CargoCli::Quality(quality) = args;
         match quality.command {
-            Command::Fix { path, dry_run } => {
+            Command::Fix {
+                path,
+                dry_run
+            } => {
                 assert_eq!(path, ".");
                 assert!(!dry_run);
             }
@@ -152,10 +177,50 @@ mod tests {
         let args = CargoCli::parse_from(["cargo", "quality", "format", "src/"]);
         let CargoCli::Quality(quality) = args;
         match quality.command {
-            Command::Format { path } => {
+            Command::Format {
+                path
+            } => {
                 assert_eq!(path, "src/");
             }
             _ => panic!("Expected Format command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_fmt() {
+        let args = CargoCli::parse_from(["cargo", "quality", "fmt"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Fmt {
+                path
+            } => {
+                assert_eq!(path, ".");
+            }
+            _ => panic!("Expected Fmt command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_fmt_with_path() {
+        let args = CargoCli::parse_from(["cargo", "quality", "fmt", "src/"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Fmt {
+                path
+            } => {
+                assert_eq!(path, "src/");
+            }
+            _ => panic!("Expected Fmt command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_help() {
+        let args = CargoCli::parse_from(["cargo", "quality", "help"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Help => {}
+            _ => panic!("Expected Help command")
         }
     }
 }

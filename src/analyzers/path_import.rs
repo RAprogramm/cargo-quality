@@ -10,9 +10,9 @@
 use masterror::AppResult;
 use quote::ToTokens;
 use syn::{
+    ExprMethodCall, ExprPath, File, Path,
     visit::Visit,
-    visit_mut::{self, VisitMut},
-    ExprMethodCall, ExprPath, File, Path
+    visit_mut::{self, VisitMut}
 };
 
 use crate::analyzer::{AnalysisResult, Analyzer, Issue};
@@ -115,7 +115,8 @@ impl PathImportAnalyzer {
     ///
     /// `true` if all characters are uppercase, underscore, or numeric
     fn is_screaming_snake_case(s: &str) -> bool {
-        s.chars().all(|c| c.is_uppercase() || c == '_' || c.is_numeric())
+        s.chars()
+            .all(|c| c.is_uppercase() || c == '_' || c.is_numeric())
     }
 
     /// Check if name is standard library root module.
@@ -138,16 +139,23 @@ impl Analyzer for PathImportAnalyzer {
     }
 
     fn analyze(&self, ast: &File) -> AppResult<AnalysisResult> {
-        let mut visitor = PathVisitor { issues: Vec::new() };
+        let mut visitor = PathVisitor {
+            issues: Vec::new()
+        };
         visitor.visit_file(&mut ast.clone());
 
         let fixable_count = visitor.issues.len();
 
-        Ok(AnalysisResult { issues: visitor.issues, fixable_count })
+        Ok(AnalysisResult {
+            issues: visitor.issues,
+            fixable_count
+        })
     }
 
     fn fix(&self, ast: &mut File) -> AppResult<usize> {
-        let mut fixer = PathFixer { fixed_count: 0 };
+        let mut fixer = PathFixer {
+            fixed_count: 0
+        };
         fixer.visit_file_mut(ast);
         Ok(fixer.fixed_count)
     }
@@ -161,9 +169,9 @@ impl PathVisitor {
     fn check_path(&mut self, path: &Path) {
         if PathImportAnalyzer::should_extract_to_import(path) {
             self.issues.push(Issue {
-                line: 0,
-                column: 0,
-                message: format!("Use import instead of path: {}", path.to_token_stream()),
+                line:       0,
+                column:     0,
+                message:    format!("Use import instead of path: {}", path.to_token_stream()),
                 suggestion: Some(format!("use {};", path.to_token_stream()))
             });
         }
@@ -380,5 +388,4 @@ mod tests {
         let result = analyzer.analyze(&code).unwrap();
         assert!(result.issues.len() > 0);
     }
-
 }

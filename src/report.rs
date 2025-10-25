@@ -15,7 +15,7 @@ pub struct Report {
     /// File path being analyzed
     pub file_path: String,
     /// Analysis results grouped by analyzer name
-    pub results: Vec<(String, AnalysisResult)>
+    pub results:   Vec<(String, AnalysisResult)>
 }
 
 impl Report {
@@ -29,7 +29,10 @@ impl Report {
     ///
     /// Empty report ready to accumulate results
     pub fn new(file_path: String) -> Self {
-        Self { file_path, results: Vec::new() }
+        Self {
+            file_path,
+            results: Vec::new()
+        }
     }
 
     /// Add analysis result from an analyzer.
@@ -90,9 +93,8 @@ impl fmt::Display for Report {
 
 #[cfg(test)]
 mod tests {
-    use crate::analyzer::Issue;
-
     use super::*;
+    use crate::analyzer::Issue;
 
     #[test]
     fn test_report_creation() {
@@ -104,7 +106,10 @@ mod tests {
     #[test]
     fn test_report_add_result() {
         let mut report = Report::new("test.rs".to_string());
-        let result = AnalysisResult { issues: vec![], fixable_count: 0 };
+        let result = AnalysisResult {
+            issues:        vec![],
+            fixable_count: 0
+        };
 
         report.add_result("test_analyzer".to_string(), result);
         assert_eq!(report.results.len(), 1);
@@ -115,13 +120,16 @@ mod tests {
         let mut report = Report::new("test.rs".to_string());
 
         let issue = Issue {
-            line: 1,
-            column: 1,
-            message: "Test".to_string(),
+            line:       1,
+            column:     1,
+            message:    "Test".to_string(),
             suggestion: None
         };
 
-        let result = AnalysisResult { issues: vec![issue], fixable_count: 1 };
+        let result = AnalysisResult {
+            issues:        vec![issue],
+            fixable_count: 1
+        };
 
         report.add_result("analyzer1".to_string(), result);
         assert_eq!(report.total_issues(), 1);
@@ -133,13 +141,16 @@ mod tests {
         let mut report = Report::new("test.rs".to_string());
 
         let issue = Issue {
-            line: 42,
-            column: 15,
-            message: "Test issue".to_string(),
+            line:       42,
+            column:     15,
+            message:    "Test issue".to_string(),
             suggestion: Some("Fix suggestion".to_string())
         };
 
-        let result = AnalysisResult { issues: vec![issue], fixable_count: 1 };
+        let result = AnalysisResult {
+            issues:        vec![issue],
+            fixable_count: 1
+        };
 
         report.add_result("test_analyzer".to_string(), result);
 
@@ -156,7 +167,10 @@ mod tests {
     fn test_report_display_without_issues() {
         let mut report = Report::new("test.rs".to_string());
 
-        let result = AnalysisResult { issues: vec![], fixable_count: 0 };
+        let result = AnalysisResult {
+            issues:        vec![],
+            fixable_count: 0
+        };
 
         report.add_result("empty_analyzer".to_string(), result);
 
@@ -172,13 +186,16 @@ mod tests {
         let mut report = Report::new("file.rs".to_string());
 
         let issue = Issue {
-            line: 10,
-            column: 5,
-            message: "Warning message".to_string(),
+            line:       10,
+            column:     5,
+            message:    "Warning message".to_string(),
             suggestion: None
         };
 
-        let result = AnalysisResult { issues: vec![issue], fixable_count: 0 };
+        let result = AnalysisResult {
+            issues:        vec![issue],
+            fixable_count: 0
+        };
 
         report.add_result("warn_analyzer".to_string(), result);
 

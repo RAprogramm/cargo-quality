@@ -65,13 +65,17 @@ impl From<FileNotFoundError> for AppError {
 
 impl From<io::Error> for IoError {
     fn from(source: io::Error) -> Self {
-        Self { source }
+        Self {
+            source
+        }
     }
 }
 
 impl From<syn::Error> for ParseError {
     fn from(source: syn::Error) -> Self {
-        Self { source }
+        Self {
+            source
+        }
     }
 }
 
@@ -82,7 +86,9 @@ impl InvalidConfigError {
     ///
     /// * `message` - Error description
     pub fn new(message: String) -> Self {
-        Self { message }
+        Self {
+            message
+        }
     }
 }
 
@@ -93,7 +99,9 @@ impl FileNotFoundError {
     ///
     /// * `path` - File path that was not found
     pub fn new(path: String) -> Self {
-        Self { path }
+        Self {
+            path
+        }
     }
 }
 

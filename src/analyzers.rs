@@ -8,7 +8,10 @@ use crate::analyzer::Analyzer;
 
 /// Get all available analyzers
 pub fn get_analyzers() -> Vec<Box<dyn Analyzer>> {
-    vec![Box::new(PathImportAnalyzer::new()), Box::new(FormatArgsAnalyzer::new())]
+    vec![
+        Box::new(PathImportAnalyzer::new()),
+        Box::new(FormatArgsAnalyzer::new()),
+    ]
 }
 
 #[cfg(test)]

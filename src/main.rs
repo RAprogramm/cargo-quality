@@ -34,15 +34,32 @@ mod analyzer;
 mod analyzers;
 mod cli;
 mod error;
+mod formatter;
+mod help;
 mod report;
 
 fn main() -> AppResult<()> {
     let args = QualityArgs::parse_args();
 
     match args.command {
-        Command::Check { path, verbose } => check_quality(&path, verbose)?,
-        Command::Fix { path, dry_run } => fix_quality(&path, dry_run)?,
-        Command::Format { path } => format_quality(&path)?
+        Command::Check {
+            path,
+            verbose
+        } => check_quality(&path, verbose)?,
+        Command::Fix {
+            path,
+            dry_run
+        } => fix_quality(&path, dry_run)?,
+        Command::Format {
+            path
+        } => format_quality(&path)?,
+        Command::Fmt {
+            path: _
+        } => formatter::format_code()?,
+        Command::Help => {
+            help::display_help();
+            return Ok(());
+        }
     }
 
     Ok(())
@@ -86,7 +103,7 @@ fn check_quality(path: &str, verbose: bool) -> AppResult<()> {
         if report.total_issues() > 0 {
             println!("{}", report);
         } else if verbose {
-            println!("✓ {}", file_path.display());
+            println!("OK {}", file_path.display());
         }
     }
 
@@ -95,8 +112,8 @@ fn check_quality(path: &str, verbose: bool) -> AppResult<()> {
 
 /// Fix quality issues automatically.
 ///
-/// Applies automatic fixes from all analyzers to Rust files in the specified path.
-/// Can run in dry-run mode to preview changes without modifying files.
+/// Applies automatic fixes from all analyzers to Rust files in the specified
+/// path. Can run in dry-run mode to preview changes without modifying files.
 ///
 /// # Arguments
 ///
@@ -105,7 +122,8 @@ fn check_quality(path: &str, verbose: bool) -> AppResult<()> {
 ///
 /// # Returns
 ///
-/// `AppResult<()>` - Ok if fixes applied successfully, error on IO or parse failures
+/// `AppResult<()>` - Ok if fixes applied successfully, error on IO or parse
+/// failures
 ///
 /// # Examples
 ///
@@ -159,7 +177,8 @@ fn format_quality(path: &str) -> AppResult<()> {
 
 /// Collect all Rust source files from a path.
 ///
-/// Recursively walks directories to find all `.rs` files. Follows symbolic links.
+/// Recursively walks directories to find all `.rs` files. Follows symbolic
+/// links.
 ///
 /// # Arguments
 ///
@@ -183,7 +202,11 @@ fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
     if path_buf.is_file() && path_buf.extension().map_or(false, |e| e == "rs") {
         files.push(path_buf);
     } else if path_buf.is_dir() {
-        for entry in WalkDir::new(path).follow_links(true).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(path)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             if entry.file_type().is_file() {
                 if let Some(ext) = entry.path().extension() {
                     if ext == "rs" {
@@ -242,7 +265,11 @@ mod tests {
     fn test_check_quality() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, "fn main() { let x = std::fs::read_to_string(\"f\"); }").unwrap();
+        fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
 
         let result = check_quality(temp_dir.path().to_str().unwrap(), false);
         assert!(result.is_ok());
@@ -312,7 +339,11 @@ mod tests {
     fn test_fix_quality_with_fixes() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, "fn main() { let x = std::fs::read_to_string(\"f\"); }").unwrap();
+        fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
 
         let result = fix_quality(temp_dir.path().to_str().unwrap(), false);
         assert!(result.is_ok());
@@ -352,7 +383,11 @@ mod tests {
     fn test_format_quality_with_changes() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, "fn main() { let x = std::fs::read_to_string(\"f\"); }").unwrap();
+        fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
 
         let result = format_quality(temp_dir.path().to_str().unwrap());
         assert!(result.is_ok());
