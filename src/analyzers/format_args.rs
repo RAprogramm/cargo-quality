@@ -19,9 +19,9 @@ impl FormatArgsAnalyzer {
             let has_comma = token_str.contains(',');
             if has_comma {
                 return Some(Issue {
-                    line: 0,
-                    column: 0,
-                    message: "Use named format arguments".to_string(),
+                    line:       0,
+                    column:     0,
+                    message:    "Use named format arguments".to_string(),
                     suggestion: Some("Replace {} with {name}".to_string())
                 });
             }
@@ -37,12 +37,17 @@ impl Analyzer for FormatArgsAnalyzer {
     }
 
     fn analyze(&self, ast: &File) -> AppResult<AnalysisResult> {
-        let mut visitor = FormatVisitor { issues: Vec::new() };
+        let mut visitor = FormatVisitor {
+            issues: Vec::new()
+        };
         syn::visit::visit_file(&mut visitor, ast);
 
         let fixable_count = visitor.issues.len();
 
-        Ok(AnalysisResult { issues: visitor.issues, fixable_count })
+        Ok(AnalysisResult {
+            issues: visitor.issues,
+            fixable_count
+        })
     }
 
     fn fix(&self, _ast: &mut File) -> AppResult<usize> {

@@ -1,6 +1,7 @@
 //! Core analyzer trait and types for code quality analysis.
 //!
-//! This module defines the fundamental abstractions for building code analyzers:
+//! This module defines the fundamental abstractions for building code
+//! analyzers:
 //! - `Analyzer` trait that all analyzers must implement
 //! - `Issue` struct representing detected problems
 //! - `AnalysisResult` struct containing analysis outcomes
@@ -18,21 +19,21 @@ use syn::File;
 /// ```
 /// # use cargo_quality::analyzer::Issue;
 /// let issue = Issue {
-///     line: 42,
-///     column: 15,
-///     message: "Use import instead of path".to_string(),
-///     suggestion: Some("use std::fs::read_to_string;".to_string()),
+///     line:       42,
+///     column:     15,
+///     message:    "Use import instead of path".to_string(),
+///     suggestion: Some("use std::fs::read_to_string;".to_string())
 /// };
 /// assert_eq!(issue.line, 42);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Issue {
     /// Line number where issue was found
-    pub line: usize,
+    pub line:       usize,
     /// Column number
-    pub column: usize,
+    pub column:     usize,
     /// Issue description
-    pub message: String,
+    pub message:    String,
     /// Suggested fix
     pub suggestion: Option<String>
 }
@@ -47,15 +48,15 @@ pub struct Issue {
 /// use cargo_quality::analyzer::AnalysisResult;
 ///
 /// let result = AnalysisResult {
-///     issues: vec![],
-///     fixable_count: 0,
+///     issues:        vec![],
+///     fixable_count: 0
 /// };
 /// assert_eq!(result.issues.len(), 0);
 /// ```
 #[derive(Debug, Default)]
 pub struct AnalysisResult {
     /// Issues found
-    pub issues: Vec<Issue>,
+    pub issues:        Vec<Issue>,
     /// Number of fixable issues
     pub fixable_count: usize
 }
@@ -68,7 +69,7 @@ pub struct AnalysisResult {
 /// # Examples
 ///
 /// ```
-/// use cargo_quality::analyzer::{Analyzer, AnalysisResult};
+/// use cargo_quality::analyzer::{AnalysisResult, Analyzer};
 /// use masterror::AppResult;
 /// use syn::File;
 ///
@@ -126,9 +127,9 @@ mod tests {
     #[test]
     fn test_issue_creation() {
         let issue = Issue {
-            line: 42,
-            column: 10,
-            message: "Test issue".to_string(),
+            line:       42,
+            column:     10,
+            message:    "Test issue".to_string(),
             suggestion: Some("Fix suggestion".to_string())
         };
 

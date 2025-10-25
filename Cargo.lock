@@ -107,6 +107,7 @@ dependencies = [
  "clap",
  "criterion",
  "masterror",
+ "owo-colors",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -509,6 +510,12 @@ name = "oorandom"
 version = "11.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
+
+[[package]]
+name = "owo-colors"
+version = "4.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c6901729fa79e91a0913333229e9ca5dc725089d1c363b2f4b4760709dc4a52"
 
 [[package]]
 name = "plotters"
