@@ -3,8 +3,7 @@
 
 use std::{
     fs,
-    io::{self, Write},
-    path::PathBuf
+    io::{self, Write}
 };
 
 use masterror::AppResult;
@@ -24,7 +23,8 @@ pub struct DiffEntry {
     pub analyzer:    String,
     pub original:    String,
     pub modified:    String,
-    pub description: String
+    pub description: String,
+    pub import:      Option<String>
 }
 
 /// Diff results for a single file.
@@ -46,6 +46,7 @@ impl FileDiff {
     /// # Returns
     ///
     /// Empty `FileDiff` structure
+    #[inline]
     pub fn new(path: String) -> Self {
         Self {
             path,
@@ -58,6 +59,7 @@ impl FileDiff {
     /// # Arguments
     ///
     /// * `entry` - Diff entry to add
+    #[inline]
     pub fn add_entry(&mut self, entry: DiffEntry) {
         self.entries.push(entry);
     }
@@ -67,6 +69,7 @@ impl FileDiff {
     /// # Returns
     ///
     /// Number of diff entries
+    #[inline]
     pub fn total_changes(&self) -> usize {
         self.entries.len()
     }
@@ -86,6 +89,7 @@ impl DiffResult {
     /// # Returns
     ///
     /// Empty `DiffResult` structure
+    #[inline]
     pub fn new() -> Self {
         Self {
             files: Vec::new()
@@ -97,6 +101,7 @@ impl DiffResult {
     /// # Arguments
     ///
     /// * `file_diff` - File diff to add
+    #[inline]
     pub fn add_file(&mut self, file_diff: FileDiff) {
         if file_diff.total_changes() > 0 {
             self.files.push(file_diff);
@@ -108,6 +113,7 @@ impl DiffResult {
     /// # Returns
     ///
     /// Total change count
+    #[inline]
     pub fn total_changes(&self) -> usize {
         self.files.iter().map(|f| f.total_changes()).sum()
     }
@@ -117,6 +123,7 @@ impl DiffResult {
     /// # Returns
     ///
     /// File count
+    #[inline]
     pub fn total_files(&self) -> usize {
         self.files.len()
     }
@@ -149,7 +156,7 @@ impl Default for DiffResult {
 /// ```
 pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppResult<FileDiff> {
     let content = fs::read_to_string(file_path).map_err(IoError::from)?;
-    let mut ast = syn::parse_file(&content).map_err(ParseError::from)?;
+    let ast = syn::parse_file(&content).map_err(ParseError::from)?;
 
     let mut file_diff = FileDiff::new(file_path.to_string());
 
@@ -157,27 +164,32 @@ pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppRes
         let result = analyzer.analyze(&ast)?;
 
         for issue in result.issues {
+            if issue.line == 0 || !issue.fix.is_available() {
+                continue;
+            }
+
             let original_content = content
                 .lines()
                 .nth(issue.line.saturating_sub(1))
                 .unwrap_or("");
 
-            let original_ast = ast.clone();
-            analyzer.fix(&mut ast)?;
-            let modified_content = prettyplease::unparse(&ast);
-            let modified_line = modified_content
-                .lines()
-                .nth(issue.line.saturating_sub(1))
-                .unwrap_or("");
-
-            ast = original_ast;
+            let (modified_line, import) =
+                if let Some((import, pattern, replacement)) = issue.fix.as_import() {
+                    let modified = original_content.replace(pattern, replacement);
+                    (modified, Some(import.to_string()))
+                } else if let Some(simple) = issue.fix.as_simple() {
+                    (simple.to_string(), None)
+                } else {
+                    continue;
+                };
 
             let entry = DiffEntry {
-                line:        issue.line,
-                analyzer:    analyzer.name().to_string(),
-                original:    original_content.to_string(),
-                modified:    modified_line.to_string(),
-                description: issue.message
+                line: issue.line,
+                analyzer: analyzer.name().to_string(),
+                original: original_content.to_string(),
+                modified: modified_line,
+                description: issue.message,
+                import
             };
 
             file_diff.add_entry(entry);
@@ -242,7 +254,7 @@ pub fn show_full(result: &DiffResult) {
         println!("{}", format!("File: {}", file.path).cyan().bold());
         println!("{}", "────────────────────────────────────────".dimmed());
 
-        let mut last_analyzer = String::new();
+        let mut last_analyzer = "";
         for entry in &file.entries {
             if entry.analyzer != last_analyzer {
                 if !last_analyzer.is_empty() {
@@ -257,12 +269,14 @@ pub fn show_full(result: &DiffResult) {
                         .count()
                 );
                 println!();
-                last_analyzer = entry.analyzer.clone();
+                last_analyzer = &entry.analyzer;
             }
 
-            println!("{}", format!("--- Line {}", entry.line).red());
-            println!("{}", format!("+++ Line {}", entry.line).green());
+            println!("{}", format!("Line {}", entry.line).cyan());
             println!("{}", format!("-    {}", entry.original).red());
+            if let Some(import) = &entry.import {
+                println!("{}", format!("+    {}", import).green());
+            }
             println!("{}", format!("+    {}", entry.modified).green());
             println!();
         }
@@ -294,7 +308,7 @@ pub fn show_full(result: &DiffResult) {
 ///
 /// `AppResult<Vec<DiffEntry>>` - Selected entries or error
 pub fn show_interactive(result: &DiffResult) -> AppResult<Vec<DiffEntry>> {
-    let mut selected = Vec::new();
+    let mut selected = Vec::with_capacity(result.total_changes());
     let mut apply_all = false;
 
     println!("\n{}\n", "INTERACTIVE DIFF".bold());
@@ -312,6 +326,9 @@ pub fn show_interactive(result: &DiffResult) -> AppResult<Vec<DiffEntry>> {
             );
             println!("{}", format!("Line {}:", entry.line).dimmed());
             println!("{}", format!("- {}", entry.original).red());
+            if let Some(import) = &entry.import {
+                println!("{}", format!("+ {}", import).green());
+            }
             println!("{}", format!("+ {}", entry.modified).green());
             println!();
 
@@ -361,40 +378,6 @@ pub fn show_interactive(result: &DiffResult) -> AppResult<Vec<DiffEntry>> {
     Ok(selected)
 }
 
-/// Collects Rust files from path.
-///
-/// # Arguments
-///
-/// * `path` - Directory or file path
-///
-/// # Returns
-///
-/// `AppResult<Vec<PathBuf>>` - List of Rust files
-pub fn collect_files(path: &str) -> AppResult<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    let path_buf = PathBuf::from(path);
-
-    if path_buf.is_file() && path_buf.extension().map_or(false, |e| e == "rs") {
-        files.push(path_buf);
-    } else if path_buf.is_dir() {
-        for entry in walkdir::WalkDir::new(path)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_file() {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "rs" {
-                        files.push(entry.path().to_path_buf());
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(files)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,7 +389,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         };
 
         assert_eq!(entry.line, 10);
@@ -428,7 +412,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         };
 
         diff.add_entry(entry);
@@ -452,7 +437,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         };
 
         file_diff.add_entry(entry);
@@ -493,7 +479,8 @@ mod tests {
             analyzer:    "test_analyzer".to_string(),
             original:    "old line".to_string(),
             modified:    "new line".to_string(),
-            description: "test change".to_string()
+            description: "test change".to_string(),
+            import:      None
         };
 
         let entry2 = DiffEntry {
@@ -501,7 +488,8 @@ mod tests {
             analyzer:    "test_analyzer".to_string(),
             original:    "old line 2".to_string(),
             modified:    "new line 2".to_string(),
-            description: "test change 2".to_string()
+            description: "test change 2".to_string(),
+            import:      None
         };
 
         file_diff.add_entry(entry1);
@@ -521,63 +509,14 @@ mod tests {
             analyzer:    "format_args".to_string(),
             original:    "println!(\"Hello {}\", name)".to_string(),
             modified:    "println!(\"Hello {name}\")".to_string(),
-            description: "Use named arguments".to_string()
+            description: "Use named arguments".to_string(),
+            import:      None
         };
 
         file_diff.add_entry(entry);
         result.add_file(file_diff);
 
         show_full(&result);
-    }
-
-    #[test]
-    fn test_collect_files_single_file() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
-        std::fs::write(&file_path, "fn main() {}").unwrap();
-
-        let result = collect_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 1);
-    }
-
-    #[test]
-    fn test_collect_files_directory() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let file1 = temp_dir.path().join("test1.rs");
-        let file2 = temp_dir.path().join("test2.rs");
-        let file3 = temp_dir.path().join("test.txt");
-
-        std::fs::write(&file1, "fn test1() {}").unwrap();
-        std::fs::write(&file2, "fn test2() {}").unwrap();
-        std::fs::write(&file3, "not rust").unwrap();
-
-        let result = collect_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 2);
-    }
-
-    #[test]
-    fn test_collect_files_empty_dir() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let result = collect_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 0);
-    }
-
-    #[test]
-    fn test_collect_files_non_rust() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-        std::fs::write(&file_path, "not rust").unwrap();
-
-        let result = collect_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 0);
     }
 
     #[test]
@@ -598,8 +537,6 @@ mod tests {
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
 
         assert!(result.is_ok());
-        let file_diff = result.unwrap();
-        assert!(!file_diff.entries.is_empty());
     }
 
     #[test]
@@ -644,7 +581,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         });
 
         let mut file2 = FileDiff::new("file2.rs".to_string());
@@ -653,7 +591,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         });
 
         result.add_file(file1);
@@ -661,5 +600,50 @@ mod tests {
 
         assert_eq!(result.total_files(), 2);
         assert_eq!(result.total_changes(), 2);
+    }
+
+    #[test]
+    fn test_path_import_included_in_diff() {
+        use tempfile::TempDir;
+
+        use crate::analyzers::get_analyzers;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
+
+        let analyzers = get_analyzers();
+        let result = generate_diff(file_path.to_str().unwrap(), &analyzers).unwrap();
+
+        assert!(
+            result.entries.iter().any(|e| e.analyzer == "path_import"),
+            "path_import should be included in diff with suggestions"
+        );
+    }
+
+    #[test]
+    fn test_format_args_excluded_from_diff_without_suggestion() {
+        use tempfile::TempDir;
+
+        use crate::analyzers::get_analyzers;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(
+            &file_path,
+            "fn main() { println!(\"Hello {}\", \"world\"); }"
+        )
+        .unwrap();
+
+        let analyzers = get_analyzers();
+        let result = generate_diff(file_path.to_str().unwrap(), &analyzers).unwrap();
+
+        for entry in &result.entries {
+            assert_ne!(entry.analyzer, "format_args");
+        }
     }
 }

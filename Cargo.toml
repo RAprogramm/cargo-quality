@@ -16,9 +16,10 @@ rust-version = "1.90"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 syn = { version = "2", features = ["full", "extra-traits", "visit", "visit-mut"] }
 quote = "1"
-proc-macro2 = "1"
+proc-macro2 = { version = "1", features = ["span-locations"] }
 masterror = "0.24"
 walkdir = "2"
 prettyplease = "0.2"
@@ -33,6 +34,14 @@ lto = true
 codegen-units = 1
 opt-level = 3
 
+[lib]
+name = "cargo_quality"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cargo-quality"
 path = "src/main.rs"
+
+[[bench]]
+name = "analyzers"
+harness = false

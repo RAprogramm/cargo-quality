@@ -145,10 +145,10 @@ pub fn format_code() -> AppResult<()> {
         println!("Code formatted successfully");
         Ok(())
     } else {
-        Err(IoError::from(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("cargo fmt failed with status: {}", status)
-        ))
+        Err(IoError::from(std::io::Error::other(format!(
+            "cargo fmt failed with status: {}",
+            status
+        )))
         .into())
     }
 }

@@ -80,8 +80,13 @@ impl fmt::Display for Report {
             writeln!(f, "\n[{}]", analyzer_name)?;
             for issue in &result.issues {
                 write!(f, "  {}:{} - {}", issue.line, issue.column, issue.message)?;
-                if let Some(suggestion) = &issue.suggestion {
-                    write!(f, "\n    Suggestion: {}", suggestion)?;
+                if issue.fix.is_available() {
+                    if let Some((import, _pattern, _replacement)) = issue.fix.as_import() {
+                        write!(f, "\n    Fix: Add import: {}", import)?;
+                        write!(f, "\n    (Will replace path with short name)")?;
+                    } else if let Some(simple) = issue.fix.as_simple() {
+                        write!(f, "\n    Fix: {}", simple)?;
+                    }
                 }
                 writeln!(f)?;
             }
@@ -123,10 +128,10 @@ mod tests {
         let mut report = Report::new("test.rs".to_string());
 
         let issue = Issue {
-            line:       1,
-            column:     1,
-            message:    "Test".to_string(),
-            suggestion: None
+            line:    1,
+            column:  1,
+            message: "Test".to_string(),
+            fix:     crate::analyzer::Fix::None
         };
 
         let result = AnalysisResult {
@@ -144,10 +149,10 @@ mod tests {
         let mut report = Report::new("test.rs".to_string());
 
         let issue = Issue {
-            line:       42,
-            column:     15,
-            message:    "Test issue".to_string(),
-            suggestion: Some("Fix suggestion".to_string())
+            line:    42,
+            column:  15,
+            message: "Test issue".to_string(),
+            fix:     crate::analyzer::Fix::Simple("Fix suggestion".to_string())
         };
 
         let result = AnalysisResult {
@@ -161,7 +166,7 @@ mod tests {
         assert!(output.contains("Quality report for: test.rs"));
         assert!(output.contains("test_analyzer"));
         assert!(output.contains("42:15 - Test issue"));
-        assert!(output.contains("Suggestion: Fix suggestion"));
+        assert!(output.contains("Fix: Fix suggestion"));
         assert!(output.contains("Total issues: 1"));
         assert!(output.contains("Fixable: 1"));
     }
@@ -189,10 +194,10 @@ mod tests {
         let mut report = Report::new("file.rs".to_string());
 
         let issue = Issue {
-            line:       10,
-            column:     5,
-            message:    "Warning message".to_string(),
-            suggestion: None
+            line:    10,
+            column:  5,
+            message: "Warning message".to_string(),
+            fix:     crate::analyzer::Fix::None
         };
 
         let result = AnalysisResult {
@@ -204,7 +209,7 @@ mod tests {
 
         let output = format!("{}", report);
         assert!(output.contains("10:5 - Warning message"));
-        assert!(!output.contains("Suggestion:"));
+        assert!(!output.contains("Fix:"));
     }
 
     #[test]
@@ -212,17 +217,17 @@ mod tests {
         let mut report = Report::new("code.rs".to_string());
 
         let issue1 = Issue {
-            line:       1,
-            column:     1,
-            message:    "Issue 1".to_string(),
-            suggestion: Some("Fix 1".to_string())
+            line:    1,
+            column:  1,
+            message: "Issue 1".to_string(),
+            fix:     crate::analyzer::Fix::Simple("Fix 1".to_string())
         };
 
         let issue2 = Issue {
-            line:       2,
-            column:     2,
-            message:    "Issue 2".to_string(),
-            suggestion: None
+            line:    2,
+            column:  2,
+            message: "Issue 2".to_string(),
+            fix:     crate::analyzer::Fix::None
         };
 
         report.add_result(

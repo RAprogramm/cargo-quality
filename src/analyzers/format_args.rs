@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 use masterror::AppResult;
-use syn::{ExprMacro, File, Macro};
+use syn::{ExprMacro, File, Macro, spanned::Spanned};
 
-use crate::analyzer::{AnalysisResult, Analyzer, Issue};
+use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue};
 
 /// Analyzer for format macro arguments
 pub struct FormatArgsAnalyzer;
 
 impl FormatArgsAnalyzer {
+    #[inline]
     pub fn new() -> Self {
         Self
     }
@@ -19,13 +20,20 @@ impl FormatArgsAnalyzer {
         let token_str = tokens.to_string();
 
         if token_str.contains("{}") {
-            let has_comma = token_str.contains(',');
-            if has_comma {
+            let placeholder_count = token_str.matches("{}").count();
+
+            if placeholder_count >= 3 {
+                let span = mac.span();
+                let start = span.start();
+
                 return Some(Issue {
-                    line:       0,
-                    column:     0,
-                    message:    "Use named format arguments".to_string(),
-                    suggestion: Some("Replace {} with {name}".to_string())
+                    line:    start.line,
+                    column:  start.column,
+                    message: format!(
+                        "Use named format arguments for better readability ({} placeholders)",
+                        placeholder_count
+                    ),
+                    fix:     Fix::None
                 });
             }
         }
@@ -78,15 +86,14 @@ impl FormatVisitor {
     fn check_macro(&mut self, mac: &Macro) {
         let path = &mac.path;
 
-        if path.is_ident("format")
+        if (path.is_ident("format")
             || path.is_ident("println")
             || path.is_ident("print")
             || path.is_ident("write")
-            || path.is_ident("writeln")
+            || path.is_ident("writeln"))
+            && let Some(issue) = FormatArgsAnalyzer::analyze_format_macro(mac)
         {
-            if let Some(issue) = FormatArgsAnalyzer::analyze_format_macro(mac) {
-                self.issues.push(issue);
-            }
+            self.issues.push(issue);
         }
     }
 }
@@ -114,13 +121,26 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                let name = "World";
-                println!("Hello {}", name);
+                println!("Values: {} {} {}", 1, 2, 3);
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
+    }
+
+    #[test]
+    fn test_ignore_simple_positional() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                println!("Value: {}", 42);
+                println!("Two: {} {}", 1, 2);
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
     }
 
     #[test]
@@ -142,12 +162,12 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                let msg = format!("Value: {}", 42);
+                let msg = format!("Values: {} {} {}", 1, 2, 3);
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -155,12 +175,12 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                print!("Value: {}", 42);
+                print!("Values: {} {} {}", 1, 2, 3);
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -170,12 +190,12 @@ mod tests {
             fn main() {
                 use std::io::Write;
                 let mut buf = Vec::new();
-                write!(&mut buf, "Value: {}", 42).unwrap();
+                write!(&mut buf, "Values: {} {} {}", 1, 2, 3).unwrap();
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -185,12 +205,12 @@ mod tests {
             fn main() {
                 use std::io::Write;
                 let mut buf = Vec::new();
-                writeln!(&mut buf, "Value: {}", 42).unwrap();
+                writeln!(&mut buf, "Values: {} {} {}", 1, 2, 3).unwrap();
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -198,7 +218,7 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let mut code: File = parse_quote! {
             fn main() {
-                println!("Hello {}", "world");
+                println!("Hello {} {} {}", 1, 2, 3);
             }
         };
 
@@ -208,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_default_implementation() {
-        let analyzer = FormatArgsAnalyzer::default();
+        let analyzer = FormatArgsAnalyzer;
         assert_eq!(analyzer.name(), "format_args");
     }
 

@@ -24,15 +24,13 @@
 use std::{fs, path::PathBuf};
 
 use masterror::AppResult;
-use walkdir::WalkDir;
 
 use crate::{
     analyzers::get_analyzers,
-    cli::{Command, QualityArgs},
-    differ::{
-        DiffResult, collect_files, generate_diff, show_full, show_interactive, show_summary
-    },
+    cli::{Command, QualityArgs, Shell},
+    differ::{DiffResult, generate_diff, show_full, show_interactive, show_summary},
     error::{IoError, ParseError},
+    file_utils::collect_rust_files,
     report::Report
 };
 
@@ -41,6 +39,7 @@ mod analyzers;
 mod cli;
 mod differ;
 mod error;
+mod file_utils;
 mod formatter;
 mod help;
 mod report;
@@ -72,8 +71,245 @@ fn main() -> AppResult<()> {
             help::display_help();
             return Ok(());
         }
+        Command::Completions {
+            shell
+        } => {
+            generate_completions(shell);
+            return Ok(());
+        }
+        Command::Setup => {
+            setup_completions()?;
+            return Ok(());
+        }
     }
 
+    Ok(())
+}
+
+/// Generate shell completions.
+///
+/// Outputs completion script for the specified shell to stdout.
+///
+/// # Arguments
+///
+/// * `shell` - Target shell for completion generation
+fn generate_completions(shell: Shell) {
+    use clap::CommandFactory;
+    use clap_complete::{Shell as CompShell, generate};
+
+    let mut cmd = crate::cli::CargoCli::command();
+    let bin_name = "cargo-quality";
+
+    let comp_shell = match shell {
+        Shell::Bash => CompShell::Bash,
+        Shell::Fish => CompShell::Fish,
+        Shell::Zsh => CompShell::Zsh,
+        Shell::PowerShell => CompShell::PowerShell,
+        Shell::Elvish => CompShell::Elvish
+    };
+
+    generate(comp_shell, &mut cmd, bin_name, &mut std::io::stdout());
+}
+
+/// Setup shell completions automatically.
+///
+/// Detects current shell and installs completions to standard location.
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if setup succeeds
+fn setup_completions() -> AppResult<()> {
+    let shell_name = detect_shell();
+
+    let Some((shell, comp_dir, file_name)) = get_completion_config(&shell_name) else {
+        println!("❌ Unsupported shell: {}", shell_name);
+        println!("Supported shells: bash, fish, zsh");
+        println!("\nManual installation:");
+        println!("  cargo quality completions <shell> > <completion-file>");
+        return Ok(());
+    };
+
+    fs::create_dir_all(&comp_dir).map_err(IoError::from)?;
+    let comp_file = comp_dir.join(file_name);
+
+    if shell_name == "fish" {
+        install_fish_completions(&comp_file)?;
+    } else {
+        install_generated_completions(shell, &comp_file)?;
+    }
+
+    println!(
+        "✓ {} completions installed to: {}",
+        shell_name,
+        comp_file.display()
+    );
+    println!(
+        "\nCompletions will be available in new {} sessions",
+        shell_name
+    );
+    println!("Or run: source {}", comp_file.display());
+
+    Ok(())
+}
+
+/// Detects current shell from SHELL environment variable.
+///
+/// # Returns
+///
+/// Shell name (e.g., "bash", "fish", "zsh")
+#[inline]
+fn detect_shell() -> String {
+    use std::env;
+
+    let shell_path = env::var("SHELL").unwrap_or_else(|_| String::from("/bin/sh"));
+    let shell_path_buf = PathBuf::from(&shell_path);
+    shell_path_buf
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("sh")
+        .to_string()
+}
+
+/// Gets HOME directory path.
+///
+/// # Returns
+///
+/// Home directory path or "~" if not found
+#[inline]
+fn get_home_dir() -> String {
+    use std::env;
+
+    env::var("HOME").unwrap_or_else(|_| String::from("~"))
+}
+
+/// Gets XDG_CONFIG_HOME directory.
+///
+/// Falls back to ~/.config if not set.
+///
+/// # Returns
+///
+/// Config directory path
+#[inline]
+fn get_xdg_config_home() -> PathBuf {
+    use std::env;
+
+    env::var("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(get_home_dir()).join(".config"))
+}
+
+/// Gets XDG_DATA_HOME directory.
+///
+/// Falls back to ~/.local/share if not set.
+///
+/// # Returns
+///
+/// Data directory path
+#[inline]
+fn get_xdg_data_home() -> PathBuf {
+    use std::env;
+
+    env::var("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(get_home_dir()).join(".local").join("share"))
+}
+
+/// Gets completion configuration for a shell.
+///
+/// Returns None for unsupported shells.
+///
+/// # Arguments
+///
+/// * `shell_name` - Shell name (e.g., "bash", "fish", "zsh")
+///
+/// # Returns
+///
+/// Option<(Shell, PathBuf, &'static str)> - Shell type, directory, filename
+fn get_completion_config(shell_name: &str) -> Option<(Shell, PathBuf, &'static str)> {
+    match shell_name {
+        "fish" => {
+            let dir = get_xdg_config_home().join("fish").join("completions");
+            Some((Shell::Fish, dir, "cargo.fish"))
+        }
+        "bash" => {
+            let dir = get_xdg_data_home()
+                .join("bash-completion")
+                .join("completions");
+            Some((Shell::Bash, dir, "cargo-quality"))
+        }
+        "zsh" => {
+            let dir = get_xdg_data_home().join("zsh").join("site-functions");
+            Some((Shell::Zsh, dir, "_cargo-quality"))
+        }
+        _ => None
+    }
+}
+
+/// Installs fish shell completions.
+///
+/// Uses hardcoded fish completion script.
+///
+/// # Arguments
+///
+/// * `comp_file` - Completion file path
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if installation succeeds
+fn install_fish_completions(comp_file: &std::path::Path) -> AppResult<()> {
+    let fish_completions = r#"# Completion for cargo quality subcommand
+complete -c cargo -n "__fish_seen_subcommand_from quality" -s h -l help -d 'Print help'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "check" -d 'Check code quality'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fix" -d 'Fix quality issues'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "format" -d 'Format code'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fmt" -d 'Run cargo +nightly fmt'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "diff" -d 'Show proposed changes'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "help" -d 'Display help'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "completions" -d 'Generate completions'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "setup" -d 'Setup completions'
+
+# Diff options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from diff" -s s -l summary -d 'Brief summary'
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from diff" -s i -l interactive -d 'Interactive mode'
+
+# Check options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from check" -s v -l verbose -d 'Detailed output'
+
+# Fix options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from fix" -s d -l dry-run -d 'Dry run'
+
+# Completions options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from completions" -f -a "bash fish zsh powershell elvish"
+"#;
+    fs::write(comp_file, fish_completions).map_err(IoError::from)?;
+    Ok(())
+}
+
+/// Installs generated completions for bash/zsh.
+///
+/// Uses clap_complete to generate shell-specific completions.
+///
+/// # Arguments
+///
+/// * `shell` - Shell type
+/// * `comp_file` - Completion file path
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if installation succeeds
+fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> AppResult<()> {
+    use clap::CommandFactory;
+    use clap_complete::{Shell as CompShell, generate};
+
+    let mut cmd = crate::cli::CargoCli::command();
+    let comp_shell = match shell {
+        Shell::Bash => CompShell::Bash,
+        Shell::Zsh => CompShell::Zsh,
+        _ => unreachable!()
+    };
+
+    let mut file = fs::File::create(comp_file).map_err(IoError::from)?;
+    generate(comp_shell, &mut cmd, "cargo-quality", &mut file);
     Ok(())
 }
 
@@ -212,7 +448,7 @@ fn format_quality(path: &str) -> AppResult<()> {
 /// run_diff("src/", false, false).unwrap();
 /// ```
 fn run_diff(path: &str, summary: bool, interactive: bool) -> AppResult<()> {
-    let files = collect_files(path)?;
+    let files = collect_rust_files(path)?;
     let analyzers = get_analyzers();
 
     let mut result = DiffResult::new();
@@ -238,51 +474,6 @@ fn run_diff(path: &str, summary: bool, interactive: bool) -> AppResult<()> {
     Ok(())
 }
 
-/// Collect all Rust source files from a path.
-///
-/// Recursively walks directories to find all `.rs` files. Follows symbolic
-/// links.
-///
-/// # Arguments
-///
-/// * `path` - File or directory path to search
-///
-/// # Returns
-///
-/// `AppResult<Vec<PathBuf>>` - List of Rust file paths found
-///
-/// # Examples
-///
-/// ```no_run
-/// use cargo_quality::collect_rust_files;
-/// let files = collect_rust_files("src/").unwrap();
-/// assert!(files.len() > 0);
-/// ```
-fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    let path_buf = PathBuf::from(path);
-
-    if path_buf.is_file() && path_buf.extension().map_or(false, |e| e == "rs") {
-        files.push(path_buf);
-    } else if path_buf.is_dir() {
-        for entry in WalkDir::new(path)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_file() {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "rs" {
-                        files.push(entry.path().to_path_buf());
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(files)
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -290,39 +481,6 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-
-    #[test]
-    fn test_collect_rust_files_empty_dir() {
-        let temp_dir = std::env::temp_dir();
-        let result = collect_rust_files(temp_dir.to_str().unwrap());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_collect_rust_files_single_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, "fn main() {}").unwrap();
-
-        let result = collect_rust_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], file_path);
-    }
-
-    #[test]
-    fn test_collect_rust_files_directory() {
-        let temp_dir = TempDir::new().unwrap();
-        let file1 = temp_dir.path().join("file1.rs");
-        let file2 = temp_dir.path().join("file2.rs");
-        let file3 = temp_dir.path().join("file.txt");
-
-        fs::write(&file1, "fn test1() {}").unwrap();
-        fs::write(&file2, "fn test2() {}").unwrap();
-        fs::write(&file3, "not rust").unwrap();
-
-        let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 2);
-    }
 
     #[test]
     fn test_check_quality() {
@@ -369,16 +527,6 @@ mod tests {
     }
 
     #[test]
-    fn test_collect_rust_files_non_rust_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-        fs::write(&file_path, "not rust").unwrap();
-
-        let result = collect_rust_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 0);
-    }
-
-    #[test]
     fn test_check_quality_parse_error() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("bad.rs");
@@ -410,22 +558,6 @@ mod tests {
 
         let result = fix_quality(temp_dir.path().to_str().unwrap(), false);
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_collect_rust_files_nested_directories() {
-        let temp_dir = TempDir::new().unwrap();
-        let nested_dir = temp_dir.path().join("src").join("nested");
-        fs::create_dir_all(&nested_dir).unwrap();
-
-        let file1 = temp_dir.path().join("test.rs");
-        let file2 = nested_dir.join("nested.rs");
-
-        fs::write(&file1, "fn test1() {}").unwrap();
-        fs::write(&file2, "fn test2() {}").unwrap();
-
-        let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 2);
     }
 
     #[test]

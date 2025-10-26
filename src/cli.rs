@@ -91,7 +91,28 @@ pub enum Command {
     },
 
     /// Display beautiful help with examples and usage
-    Help
+    Help,
+
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: Shell
+    },
+
+    /// Setup shell completions automatically
+    Setup
+}
+
+/// Supported shells for completion generation
+#[derive(Debug, Clone, clap::ValueEnum)]
+#[allow(clippy::enum_variant_names)]
+pub enum Shell {
+    Bash,
+    Fish,
+    Zsh,
+    PowerShell,
+    Elvish
 }
 
 impl QualityArgs {
@@ -345,6 +366,21 @@ mod tests {
                 assert!(verbose);
             }
             _ => panic!("Expected Check command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_completions() {
+        let args = CargoCli::parse_from(["cargo", "quality", "completions", "fish"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Completions {
+                shell
+            } => match shell {
+                Shell::Fish => {}
+                _ => panic!("Expected Fish shell")
+            },
+            _ => panic!("Expected Completions command")
         }
     }
 }
