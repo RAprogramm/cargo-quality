@@ -6,8 +6,6 @@ use std::path::PathBuf;
 use masterror::AppResult;
 use walkdir::WalkDir;
 
-use crate::error::IoError;
-
 /// Collects all Rust source files from given path.
 ///
 /// Recursively walks through directories and finds all `.rs` files.
