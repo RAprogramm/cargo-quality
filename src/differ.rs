@@ -161,10 +161,6 @@ pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppRes
                 continue;
             }
 
-            if analyzer.name() == "path_import" {
-                continue;
-            }
-
             let original_content = content
                 .lines()
                 .nth(issue.line.saturating_sub(1))
@@ -661,7 +657,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_import_excluded_from_diff() {
+    fn test_path_import_included_in_diff() {
         use tempfile::TempDir;
 
         use crate::analyzers::get_analyzers;
@@ -677,9 +673,10 @@ mod tests {
         let analyzers = get_analyzers();
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers).unwrap();
 
-        for entry in &result.entries {
-            assert_ne!(entry.analyzer, "path_import");
-        }
+        assert!(
+            result.entries.iter().any(|e| e.analyzer == "path_import"),
+            "path_import should be included in diff with suggestions"
+        );
     }
 
     #[test]
