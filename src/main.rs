@@ -119,66 +119,145 @@ fn generate_completions(shell: Shell) {
 ///
 /// `AppResult<()>` - Ok if setup succeeds
 fn setup_completions() -> AppResult<()> {
+    let shell_name = detect_shell();
+
+    let Some((shell, comp_dir, file_name)) = get_completion_config(&shell_name) else {
+        println!("❌ Unsupported shell: {}", shell_name);
+        println!("Supported shells: bash, fish, zsh");
+        println!("\nManual installation:");
+        println!("  cargo quality completions <shell> > <completion-file>");
+        return Ok(());
+    };
+
+    fs::create_dir_all(&comp_dir).map_err(IoError::from)?;
+    let comp_file = comp_dir.join(file_name);
+
+    if shell_name == "fish" {
+        install_fish_completions(&comp_file)?;
+    } else {
+        install_generated_completions(shell, &comp_file)?;
+    }
+
+    println!(
+        "✓ {} completions installed to: {}",
+        shell_name,
+        comp_file.display()
+    );
+    println!(
+        "\nCompletions will be available in new {} sessions",
+        shell_name
+    );
+    println!("Or run: source {}", comp_file.display());
+
+    Ok(())
+}
+
+/// Detects current shell from SHELL environment variable.
+///
+/// # Returns
+///
+/// Shell name (e.g., "bash", "fish", "zsh")
+#[inline]
+fn detect_shell() -> String {
     use std::env;
 
     let shell_path = env::var("SHELL").unwrap_or_else(|_| String::from("/bin/sh"));
     let shell_path_buf = PathBuf::from(&shell_path);
-    let shell_name = shell_path_buf
+    shell_path_buf
         .file_name()
         .and_then(|s| s.to_str())
-        .unwrap_or("sh");
+        .unwrap_or("sh")
+        .to_string()
+}
 
-    let (shell, comp_dir, file_name) = match shell_name {
+/// Gets HOME directory path.
+///
+/// # Returns
+///
+/// Home directory path or "~" if not found
+#[inline]
+fn get_home_dir() -> String {
+    use std::env;
+
+    env::var("HOME").unwrap_or_else(|_| String::from("~"))
+}
+
+/// Gets XDG_CONFIG_HOME directory.
+///
+/// Falls back to ~/.config if not set.
+///
+/// # Returns
+///
+/// Config directory path
+#[inline]
+fn get_xdg_config_home() -> PathBuf {
+    use std::env;
+
+    env::var("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(get_home_dir()).join(".config"))
+}
+
+/// Gets XDG_DATA_HOME directory.
+///
+/// Falls back to ~/.local/share if not set.
+///
+/// # Returns
+///
+/// Data directory path
+#[inline]
+fn get_xdg_data_home() -> PathBuf {
+    use std::env;
+
+    env::var("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(get_home_dir()).join(".local").join("share"))
+}
+
+/// Gets completion configuration for a shell.
+///
+/// Returns None for unsupported shells.
+///
+/// # Arguments
+///
+/// * `shell_name` - Shell name (e.g., "bash", "fish", "zsh")
+///
+/// # Returns
+///
+/// Option<(Shell, PathBuf, &'static str)> - Shell type, directory, filename
+fn get_completion_config(shell_name: &str) -> Option<(Shell, PathBuf, &'static str)> {
+    match shell_name {
         "fish" => {
-            let dir = env::var("XDG_CONFIG_HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| {
-                    PathBuf::from(env::var("HOME").unwrap_or_else(|_| String::from("~")))
-                        .join(".config")
-                })
-                .join("fish")
-                .join("completions");
-            (Shell::Fish, dir, "cargo.fish")
+            let dir = get_xdg_config_home().join("fish").join("completions");
+            Some((Shell::Fish, dir, "cargo.fish"))
         }
         "bash" => {
-            let dir = env::var("XDG_DATA_HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| {
-                    PathBuf::from(env::var("HOME").unwrap_or_else(|_| String::from("~")))
-                        .join(".local")
-                        .join("share")
-                })
+            let dir = get_xdg_data_home()
                 .join("bash-completion")
                 .join("completions");
-            (Shell::Bash, dir, "cargo-quality")
+            Some((Shell::Bash, dir, "cargo-quality"))
         }
         "zsh" => {
-            let dir = env::var("XDG_DATA_HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| {
-                    PathBuf::from(env::var("HOME").unwrap_or_else(|_| String::from("~")))
-                        .join(".local")
-                        .join("share")
-                })
-                .join("zsh")
-                .join("site-functions");
-            (Shell::Zsh, dir, "_cargo-quality")
+            let dir = get_xdg_data_home().join("zsh").join("site-functions");
+            Some((Shell::Zsh, dir, "_cargo-quality"))
         }
-        _ => {
-            println!("❌ Unsupported shell: {}", shell_name);
-            println!("Supported shells: bash, fish, zsh");
-            println!("\nManual installation:");
-            println!("  cargo quality completions <shell> > <completion-file>");
-            return Ok(());
-        }
-    };
+        _ => None
+    }
+}
 
-    fs::create_dir_all(&comp_dir).map_err(IoError::from)?;
-
-    let comp_file = comp_dir.join(file_name);
-
-    if shell_name == "fish" {
-        let fish_completions = r#"# Completion for cargo quality subcommand
+/// Installs fish shell completions.
+///
+/// Uses hardcoded fish completion script.
+///
+/// # Arguments
+///
+/// * `comp_file` - Completion file path
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if installation succeeds
+fn install_fish_completions(comp_file: &std::path::Path) -> AppResult<()> {
+    let fish_completions = r#"# Completion for cargo quality subcommand
 complete -c cargo -n "__fish_seen_subcommand_from quality" -s h -l help -d 'Print help'
 complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "check" -d 'Check code quality'
 complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fix" -d 'Fix quality issues'
@@ -202,33 +281,35 @@ complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subco
 # Completions options
 complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from completions" -f -a "bash fish zsh powershell elvish"
 "#;
-        fs::write(&comp_file, fish_completions).map_err(IoError::from)?;
-    } else {
-        use clap::CommandFactory;
-        use clap_complete::{Shell as CompShell, generate};
+    fs::write(comp_file, fish_completions).map_err(IoError::from)?;
+    Ok(())
+}
 
-        let mut cmd = crate::cli::CargoCli::command();
-        let comp_shell = match shell {
-            Shell::Bash => CompShell::Bash,
-            Shell::Zsh => CompShell::Zsh,
-            _ => unreachable!()
-        };
+/// Installs generated completions for bash/zsh.
+///
+/// Uses clap_complete to generate shell-specific completions.
+///
+/// # Arguments
+///
+/// * `shell` - Shell type
+/// * `comp_file` - Completion file path
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if installation succeeds
+fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> AppResult<()> {
+    use clap::CommandFactory;
+    use clap_complete::{Shell as CompShell, generate};
 
-        let mut file = fs::File::create(&comp_file).map_err(IoError::from)?;
-        generate(comp_shell, &mut cmd, "cargo-quality", &mut file);
-    }
+    let mut cmd = crate::cli::CargoCli::command();
+    let comp_shell = match shell {
+        Shell::Bash => CompShell::Bash,
+        Shell::Zsh => CompShell::Zsh,
+        _ => unreachable!()
+    };
 
-    println!(
-        "✓ {} completions installed to: {}",
-        shell_name,
-        comp_file.display()
-    );
-    println!(
-        "\nCompletions will be available in new {} sessions",
-        shell_name
-    );
-    println!("Or run: source {}", comp_file.display());
-
+    let mut file = fs::File::create(comp_file).map_err(IoError::from)?;
+    generate(comp_shell, &mut cmd, "cargo-quality", &mut file);
     Ok(())
 }
 
