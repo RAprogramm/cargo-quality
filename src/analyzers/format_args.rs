@@ -10,6 +10,7 @@ use crate::analyzer::{AnalysisResult, Analyzer, Issue};
 pub struct FormatArgsAnalyzer;
 
 impl FormatArgsAnalyzer {
+    #[inline]
     pub fn new() -> Self {
         Self
     }

@@ -41,6 +41,7 @@ pub struct PathImportAnalyzer;
 
 impl PathImportAnalyzer {
     /// Create new path import analyzer instance.
+    #[inline]
     pub fn new() -> Self {
         Self
     }

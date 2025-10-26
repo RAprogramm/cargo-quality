@@ -45,6 +45,7 @@ impl FileDiff {
     /// # Returns
     ///
     /// Empty `FileDiff` structure
+    #[inline]
     pub fn new(path: String) -> Self {
         Self {
             path,
@@ -57,6 +58,7 @@ impl FileDiff {
     /// # Arguments
     ///
     /// * `entry` - Diff entry to add
+    #[inline]
     pub fn add_entry(&mut self, entry: DiffEntry) {
         self.entries.push(entry);
     }
@@ -66,6 +68,7 @@ impl FileDiff {
     /// # Returns
     ///
     /// Number of diff entries
+    #[inline]
     pub fn total_changes(&self) -> usize {
         self.entries.len()
     }
@@ -85,6 +88,7 @@ impl DiffResult {
     /// # Returns
     ///
     /// Empty `DiffResult` structure
+    #[inline]
     pub fn new() -> Self {
         Self {
             files: Vec::new()
@@ -96,6 +100,7 @@ impl DiffResult {
     /// # Arguments
     ///
     /// * `file_diff` - File diff to add
+    #[inline]
     pub fn add_file(&mut self, file_diff: FileDiff) {
         if file_diff.total_changes() > 0 {
             self.files.push(file_diff);
@@ -107,6 +112,7 @@ impl DiffResult {
     /// # Returns
     ///
     /// Total change count
+    #[inline]
     pub fn total_changes(&self) -> usize {
         self.files.iter().map(|f| f.total_changes()).sum()
     }
@@ -116,6 +122,7 @@ impl DiffResult {
     /// # Returns
     ///
     /// File count
+    #[inline]
     pub fn total_files(&self) -> usize {
         self.files.len()
     }
@@ -237,7 +244,7 @@ pub fn show_full(result: &DiffResult) {
         println!("{}", format!("File: {}", file.path).cyan().bold());
         println!("{}", "────────────────────────────────────────".dimmed());
 
-        let mut last_analyzer = String::new();
+        let mut last_analyzer = "";
         for entry in &file.entries {
             if entry.analyzer != last_analyzer {
                 if !last_analyzer.is_empty() {
@@ -252,7 +259,7 @@ pub fn show_full(result: &DiffResult) {
                         .count()
                 );
                 println!();
-                last_analyzer = entry.analyzer.clone();
+                last_analyzer = &entry.analyzer;
             }
 
             println!("{}", format!("--- Line {}", entry.line).red());
@@ -289,7 +296,7 @@ pub fn show_full(result: &DiffResult) {
 ///
 /// `AppResult<Vec<DiffEntry>>` - Selected entries or error
 pub fn show_interactive(result: &DiffResult) -> AppResult<Vec<DiffEntry>> {
-    let mut selected = Vec::new();
+    let mut selected = Vec::with_capacity(result.total_changes());
     let mut apply_all = false;
 
     println!("\n{}\n", "INTERACTIVE DIFF".bold());
