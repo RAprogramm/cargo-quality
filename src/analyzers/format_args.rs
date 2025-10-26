@@ -19,15 +19,19 @@ impl FormatArgsAnalyzer {
         let token_str = tokens.to_string();
 
         if token_str.contains("{}") {
-            let has_comma = token_str.contains(',');
-            if has_comma {
+            let placeholder_count = token_str.matches("{}").count();
+
+            if placeholder_count >= 3 {
                 let span = mac.span();
                 let start = span.start();
 
                 return Some(Issue {
                     line:       start.line,
                     column:     start.column,
-                    message:    "Use named format arguments instead of positional".to_string(),
+                    message:    format!(
+                        "Use named format arguments for better readability ({} placeholders)",
+                        placeholder_count
+                    ),
                     suggestion: None
                 });
             }
@@ -116,13 +120,26 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                let name = "World";
-                println!("Hello {}", name);
+                println!("Values: {} {} {}", 1, 2, 3);
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
         assert!(!result.issues.is_empty());
+    }
+
+    #[test]
+    fn test_ignore_simple_positional() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                println!("Value: {}", 42);
+                println!("Two: {} {}", 1, 2);
+            }
+        };
+
+        let result = analyzer.analyze(&code).unwrap();
+        assert_eq!(result.issues.len(), 0);
     }
 
     #[test]
@@ -144,7 +161,7 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                let msg = format!("Value: {}", 42);
+                let msg = format!("Values: {} {} {}", 1, 2, 3);
             }
         };
 
@@ -157,7 +174,7 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                print!("Value: {}", 42);
+                print!("Values: {} {} {}", 1, 2, 3);
             }
         };
 
@@ -172,7 +189,7 @@ mod tests {
             fn main() {
                 use std::io::Write;
                 let mut buf = Vec::new();
-                write!(&mut buf, "Value: {}", 42).unwrap();
+                write!(&mut buf, "Values: {} {} {}", 1, 2, 3).unwrap();
             }
         };
 
@@ -187,7 +204,7 @@ mod tests {
             fn main() {
                 use std::io::Write;
                 let mut buf = Vec::new();
-                writeln!(&mut buf, "Value: {}", 42).unwrap();
+                writeln!(&mut buf, "Values: {} {} {}", 1, 2, 3).unwrap();
             }
         };
 
@@ -200,7 +217,7 @@ mod tests {
         let analyzer = FormatArgsAnalyzer::new();
         let mut code: File = parse_quote! {
             fn main() {
-                println!("Hello {}", "world");
+                println!("Hello {} {} {}", 1, 2, 3);
             }
         };
 
