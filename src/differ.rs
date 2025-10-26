@@ -23,7 +23,8 @@ pub struct DiffEntry {
     pub analyzer:    String,
     pub original:    String,
     pub modified:    String,
-    pub description: String
+    pub description: String,
+    pub import:      Option<String>
 }
 
 /// Diff results for a single file.
@@ -163,7 +164,7 @@ pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppRes
         let result = analyzer.analyze(&ast)?;
 
         for issue in result.issues {
-            if issue.line == 0 || issue.suggestion.is_none() {
+            if issue.line == 0 || !issue.fix.is_available() {
                 continue;
             }
 
@@ -172,14 +173,22 @@ pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppRes
                 .nth(issue.line.saturating_sub(1))
                 .unwrap_or("");
 
-            let modified_line = issue.suggestion.as_ref().unwrap();
+            let (modified_line, import) =
+                if let Some((import, replacement)) = issue.fix.as_import() {
+                    (replacement.to_string(), Some(import.to_string()))
+                } else if let Some(simple) = issue.fix.as_simple() {
+                    (simple.to_string(), None)
+                } else {
+                    continue;
+                };
 
             let entry = DiffEntry {
-                line:        issue.line,
-                analyzer:    analyzer.name().to_string(),
-                original:    original_content.to_string(),
-                modified:    modified_line.to_string(),
-                description: issue.message
+                line: issue.line,
+                analyzer: analyzer.name().to_string(),
+                original: original_content.to_string(),
+                modified: modified_line,
+                description: issue.message,
+                import
             };
 
             file_diff.add_entry(entry);
@@ -262,9 +271,11 @@ pub fn show_full(result: &DiffResult) {
                 last_analyzer = &entry.analyzer;
             }
 
-            println!("{}", format!("--- Line {}", entry.line).red());
-            println!("{}", format!("+++ Line {}", entry.line).green());
+            println!("{}", format!("Line {}", entry.line).cyan());
             println!("{}", format!("-    {}", entry.original).red());
+            if let Some(import) = &entry.import {
+                println!("{}", format!("+    {}", import).green());
+            }
             println!("{}", format!("+    {}", entry.modified).green());
             println!();
         }
@@ -314,6 +325,9 @@ pub fn show_interactive(result: &DiffResult) -> AppResult<Vec<DiffEntry>> {
             );
             println!("{}", format!("Line {}:", entry.line).dimmed());
             println!("{}", format!("- {}", entry.original).red());
+            if let Some(import) = &entry.import {
+                println!("{}", format!("+ {}", import).green());
+            }
             println!("{}", format!("+ {}", entry.modified).green());
             println!();
 
@@ -374,7 +388,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         };
 
         assert_eq!(entry.line, 10);
@@ -396,7 +411,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         };
 
         diff.add_entry(entry);
@@ -420,7 +436,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         };
 
         file_diff.add_entry(entry);
@@ -461,7 +478,8 @@ mod tests {
             analyzer:    "test_analyzer".to_string(),
             original:    "old line".to_string(),
             modified:    "new line".to_string(),
-            description: "test change".to_string()
+            description: "test change".to_string(),
+            import:      None
         };
 
         let entry2 = DiffEntry {
@@ -469,7 +487,8 @@ mod tests {
             analyzer:    "test_analyzer".to_string(),
             original:    "old line 2".to_string(),
             modified:    "new line 2".to_string(),
-            description: "test change 2".to_string()
+            description: "test change 2".to_string(),
+            import:      None
         };
 
         file_diff.add_entry(entry1);
@@ -489,7 +508,8 @@ mod tests {
             analyzer:    "format_args".to_string(),
             original:    "println!(\"Hello {}\", name)".to_string(),
             modified:    "println!(\"Hello {name}\")".to_string(),
-            description: "Use named arguments".to_string()
+            description: "Use named arguments".to_string(),
+            import:      None
         };
 
         file_diff.add_entry(entry);
@@ -560,7 +580,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         });
 
         let mut file2 = FileDiff::new("file2.rs".to_string());
@@ -569,7 +590,8 @@ mod tests {
             analyzer:    "test".to_string(),
             original:    "old".to_string(),
             modified:    "new".to_string(),
-            description: "desc".to_string()
+            description: "desc".to_string(),
+            import:      None
         });
 
         result.add_file(file1);

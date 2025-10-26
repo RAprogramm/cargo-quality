@@ -34,6 +34,14 @@ lto = true
 codegen-units = 1
 opt-level = 3
 
+[lib]
+name = "cargo_quality"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cargo-quality"
 path = "src/main.rs"
+
+[[bench]]
+name = "analyzers"
+harness = false

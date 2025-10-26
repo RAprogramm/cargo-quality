@@ -4,7 +4,7 @@
 use masterror::AppResult;
 use syn::{ExprMacro, File, Macro, spanned::Spanned};
 
-use crate::analyzer::{AnalysisResult, Analyzer, Issue};
+use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue};
 
 /// Analyzer for format macro arguments
 pub struct FormatArgsAnalyzer;
@@ -27,13 +27,13 @@ impl FormatArgsAnalyzer {
                 let start = span.start();
 
                 return Some(Issue {
-                    line:       start.line,
-                    column:     start.column,
-                    message:    format!(
+                    line:    start.line,
+                    column:  start.column,
+                    message: format!(
                         "Use named format arguments for better readability ({} placeholders)",
                         placeholder_count
                     ),
-                    suggestion: None
+                    fix:     Fix::None
                 });
             }
         }

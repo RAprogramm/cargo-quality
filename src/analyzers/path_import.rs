@@ -18,7 +18,7 @@ use syn::{
     visit_mut::{self, VisitMut}
 };
 
-use crate::analyzer::{AnalysisResult, Analyzer, Issue};
+use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue};
 
 /// Analyzer for detecting path separators that should be imports.
 ///
@@ -194,11 +194,20 @@ impl PathVisitor {
                 .collect::<Vec<_>>()
                 .join("::");
 
+            let function_name = path
+                .segments
+                .last()
+                .map(|s| s.ident.to_string())
+                .unwrap_or_default();
+
             self.issues.push(Issue {
-                line:       start.line,
-                column:     start.column,
-                message:    format!("Use import instead of path: {}", path_str),
-                suggestion: Some(format!("use {};", path_str))
+                line:    start.line,
+                column:  start.column,
+                message: format!("Use import instead of path: {}", path_str),
+                fix:     Fix::WithImport {
+                    import:      format!("use {};", path_str),
+                    replacement: function_name
+                }
             });
         }
     }
@@ -482,7 +491,11 @@ mod tests {
         assert!(!result.issues.is_empty());
         let issue = &result.issues[0];
         assert!(issue.message.contains("Use import instead of path"));
-        assert!(issue.suggestion.is_some());
-        assert!(issue.suggestion.as_ref().unwrap().contains("use"));
+        assert!(issue.fix.is_available());
+        if let Some((import, _)) = issue.fix.as_import() {
+            assert!(import.contains("use"));
+        } else {
+            panic!("Expected Fix::WithImport");
+        }
     }
 }
