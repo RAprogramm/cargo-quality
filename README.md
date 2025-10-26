@@ -1,5 +1,11 @@
 # cargo-quality
 
+[![CI](https://github.com/RAprogramm/cargo-quality/actions/workflows/rust.yml/badge.svg)](https://github.com/RAprogramm/cargo-quality/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/cargo-quality.svg)](https://crates.io/crates/cargo-quality)
+[![Documentation](https://docs.rs/cargo-quality/badge.svg)](https://docs.rs/cargo-quality)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![REUSE compliant](https://api.reuse.software/badge/github.com/RAprogramm/cargo-quality)](https://api.reuse.software/info/github.com/RAprogramm/cargo-quality)
+
 Professional Rust code quality analysis tool with hardcoded standards.
 
 ## Overview
@@ -157,6 +163,43 @@ Examples:
 cargo quality format .
 ```
 
+### diff
+
+Visualize proposed changes before applying fixes.
+
+```bash
+cargo quality diff [PATH] [--summary] [--interactive]
+```
+
+Options:
+- `--summary, -s` - Show brief summary of changes per file
+- `--interactive, -i` - Interactive mode to select which fixes to apply
+
+Display modes:
+- **Full** (default) - Shows complete diff with old/new code side-by-side
+- **Summary** - Brief overview of changes grouped by analyzer
+- **Interactive** - Review and approve each fix individually
+
+Examples:
+```bash
+# Full diff view
+cargo quality diff src/
+
+# Summary view
+cargo quality diff --summary
+
+# Interactive mode
+cargo quality diff --interactive
+```
+
+Output format:
+```
+Line 529
+-    std::fs::write(buffer, data);
++    use std::fs::write;
++    write(buffer, data);
+```
+
 ### help
 
 Display detailed help with examples and usage patterns.
@@ -266,7 +309,8 @@ jobs:
 - **Modular Design** - Clean separation of concerns
 - **Analyzer Trait** - Easy to add new analyzers
 - **Zero-Cost Abstractions** - Efficient implementation
-- **Comprehensive Testing** - 68 tests with full coverage
+- **Comprehensive Testing** - 105 tests with 86.52% coverage
+- **Performance Benchmarks** - Blazing fast (format_args: 160ns, path_import: 857ns)
 - **Professional Error Handling** - Using masterror for consistency
 
 ## Development
