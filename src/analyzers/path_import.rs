@@ -206,6 +206,7 @@ impl PathVisitor {
                 message: format!("Use import instead of path: {}", path_str),
                 fix:     Fix::WithImport {
                     import:      format!("use {};", path_str),
+                    pattern:     path_str.clone(),
                     replacement: function_name
                 }
             });
@@ -492,8 +493,10 @@ mod tests {
         let issue = &result.issues[0];
         assert!(issue.message.contains("Use import instead of path"));
         assert!(issue.fix.is_available());
-        if let Some((import, _)) = issue.fix.as_import() {
+        if let Some((import, pattern, replacement)) = issue.fix.as_import() {
             assert!(import.contains("use"));
+            assert_eq!(pattern, "std::fs::read");
+            assert_eq!(replacement, "read");
         } else {
             panic!("Expected Fix::WithImport");
         }

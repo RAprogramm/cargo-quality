@@ -174,8 +174,9 @@ pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppRes
                 .unwrap_or("");
 
             let (modified_line, import) =
-                if let Some((import, replacement)) = issue.fix.as_import() {
-                    (replacement.to_string(), Some(import.to_string()))
+                if let Some((import, pattern, replacement)) = issue.fix.as_import() {
+                    let modified = original_content.replace(pattern, replacement);
+                    (modified, Some(import.to_string()))
                 } else if let Some(simple) = issue.fix.as_simple() {
                     (simple.to_string(), None)
                 } else {

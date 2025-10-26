@@ -26,11 +26,15 @@ use syn::File;
 /// assert_eq!(simple_fix.as_simple(), Some("let x = 42;"));
 ///
 /// let import_fix = Fix::WithImport {
-///     import:      "use std::fs;".to_string(),
-///     replacement: "fs::read()".to_string()
+///     import:      "use std::fs::read;".to_string(),
+///     pattern:     "std::fs::read".to_string(),
+///     replacement: "read".to_string()
 /// };
 /// assert!(import_fix.is_available());
-/// assert_eq!(import_fix.as_import(), Some(("use std::fs;", "fs::read()")));
+/// assert_eq!(
+///     import_fix.as_import(),
+///     Some(("use std::fs::read;", "std::fs::read", "read"))
+/// );
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Fix {
@@ -51,7 +55,9 @@ pub enum Fix {
     WithImport {
         /// Import statement to add (e.g., "use std::fs::read_to_string;")
         import:      String,
-        /// Replacement for the current line
+        /// Pattern to find in original line (e.g., "std::fs::read_to_string")
+        pattern:     String,
+        /// Replacement for the pattern (e.g., "read_to_string")
         replacement: String
     }
 }
@@ -80,18 +86,19 @@ impl Fix {
         }
     }
 
-    /// Returns import and replacement for import-based fixes.
+    /// Returns import, pattern, and replacement for import-based fixes.
     ///
     /// # Returns
     ///
-    /// Option<(&str, &str)> - (import, replacement) tuple
+    /// Option<(&str, &str, &str)> - (import, pattern, replacement) tuple
     #[inline]
-    pub fn as_import(&self) -> Option<(&str, &str)> {
+    pub fn as_import(&self) -> Option<(&str, &str, &str)> {
         match self {
             Fix::WithImport {
                 import,
+                pattern,
                 replacement
-            } => Some((import.as_str(), replacement.as_str())),
+            } => Some((import.as_str(), pattern.as_str(), replacement.as_str())),
             _ => None
         }
     }
@@ -112,7 +119,8 @@ impl Fix {
 ///     message: "Use import instead of path".to_string(),
 ///     fix:     Fix::WithImport {
 ///         import:      "use std::fs::read_to_string;".to_string(),
-///         replacement: "read_to_string(\"file.txt\")".to_string()
+///         pattern:     "std::fs::read_to_string".to_string(),
+///         replacement: "read_to_string".to_string()
 ///     }
 /// };
 /// assert_eq!(issue.line, 42);
@@ -235,12 +243,16 @@ mod tests {
     #[test]
     fn test_fix_with_import() {
         let fix = Fix::WithImport {
-            import:      "use std::fs;".to_string(),
-            replacement: "fs::read()".to_string()
+            import:      "use std::fs::read;".to_string(),
+            pattern:     "std::fs::read".to_string(),
+            replacement: "read".to_string()
         };
         assert!(fix.is_available());
         assert!(fix.as_simple().is_none());
-        assert_eq!(fix.as_import(), Some(("use std::fs;", "fs::read()")));
+        assert_eq!(
+            fix.as_import(),
+            Some(("use std::fs::read;", "std::fs::read", "read"))
+        );
     }
 
     #[test]

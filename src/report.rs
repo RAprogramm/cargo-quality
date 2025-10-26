@@ -81,9 +81,9 @@ impl fmt::Display for Report {
             for issue in &result.issues {
                 write!(f, "  {}:{} - {}", issue.line, issue.column, issue.message)?;
                 if issue.fix.is_available() {
-                    if let Some((import, replacement)) = issue.fix.as_import() {
+                    if let Some((import, _pattern, _replacement)) = issue.fix.as_import() {
                         write!(f, "\n    Fix: Add import: {}", import)?;
-                        write!(f, "\n    Replace with: {}", replacement)?;
+                        write!(f, "\n    (Will replace path with short name)")?;
                     } else if let Some(simple) = issue.fix.as_simple() {
                         write!(f, "\n    Fix: {}", simple)?;
                     }
