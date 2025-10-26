@@ -142,6 +142,40 @@ pub fn display_help() {
         "cargo quality help".fg::<Cyan>().italic()
     );
 
+    println!("\n  {}", "setup".fg::<Green>().bold());
+    println!(
+        "    {} Automatically install shell completions",
+        "→".fg::<Blue>()
+    );
+    println!(
+        "    {} {}",
+        "NOTE:".fg::<Blue>().dimmed(),
+        "Detects your shell and installs to standard location".fg::<Magenta>()
+    );
+    println!(
+        "    {} {}",
+        "EXAMPLE:".fg::<Blue>().dimmed(),
+        "cargo quality setup".fg::<Cyan>().italic()
+    );
+
+    println!("\n  {}", "completions".fg::<Green>().bold());
+    println!(
+        "    {} Generate shell completion scripts (manual)",
+        "→".fg::<Blue>()
+    );
+    println!(
+        "    {} {}",
+        "SHELLS:".fg::<Blue>().dimmed(),
+        "bash, fish, zsh, powershell, elvish".fg::<Magenta>()
+    );
+    println!(
+        "    {} {}",
+        "EXAMPLE:".fg::<Blue>().dimmed(),
+        "cargo quality completions fish > ~/.config/fish/completions/cargo.fish"
+            .fg::<Cyan>()
+            .italic()
+    );
+
     println!("\n{}", "ANALYZERS".fg::<Yellow>().bold());
     println!(
         "{}",

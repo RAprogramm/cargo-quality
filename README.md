@@ -22,6 +22,9 @@ Install from crates.io:
 
 ```bash
 cargo install cargo-quality
+
+# Setup shell completions (recommended)
+cargo quality setup
 ```
 
 Install from source:
@@ -30,7 +33,26 @@ Install from source:
 git clone https://github.com/RAprogramm/cargo-quality
 cd cargo-quality
 cargo install --path .
+
+# Setup shell completions (recommended)
+cargo quality setup
 ```
+
+### Shell Completions
+
+After installation, set up tab completions:
+
+```bash
+# Automatic setup (recommended - detects your shell)
+cargo quality setup
+
+# Manual setup for specific shell
+cargo quality completions fish > ~/.config/fish/completions/cargo.fish
+cargo quality completions bash > ~/.local/share/bash-completion/completions/cargo-quality
+cargo quality completions zsh > ~/.local/share/zsh/site-functions/_cargo-quality
+```
+
+**Note:** Completions will be available in new shell sessions. To use immediately, restart your shell or source the completion file.
 
 ## Requirements
 

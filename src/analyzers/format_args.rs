@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use masterror::AppResult;
-use syn::{ExprMacro, File, Macro};
+use syn::{ExprMacro, File, Macro, spanned::Spanned};
 
 use crate::analyzer::{AnalysisResult, Analyzer, Issue};
 
@@ -21,11 +21,14 @@ impl FormatArgsAnalyzer {
         if token_str.contains("{}") {
             let has_comma = token_str.contains(',');
             if has_comma {
+                let span = mac.span();
+                let start = span.start();
+
                 return Some(Issue {
-                    line:       0,
-                    column:     0,
-                    message:    "Use named format arguments".to_string(),
-                    suggestion: Some("Replace {} with {name}".to_string())
+                    line:       start.line,
+                    column:     start.column,
+                    message:    "Use named format arguments instead of positional".to_string(),
+                    suggestion: None
                 });
             }
         }
@@ -78,15 +81,14 @@ impl FormatVisitor {
     fn check_macro(&mut self, mac: &Macro) {
         let path = &mac.path;
 
-        if path.is_ident("format")
+        if (path.is_ident("format")
             || path.is_ident("println")
             || path.is_ident("print")
             || path.is_ident("write")
-            || path.is_ident("writeln")
+            || path.is_ident("writeln"))
+            && let Some(issue) = FormatArgsAnalyzer::analyze_format_macro(mac)
         {
-            if let Some(issue) = FormatArgsAnalyzer::analyze_format_macro(mac) {
-                self.issues.push(issue);
-            }
+            self.issues.push(issue);
         }
     }
 }
@@ -120,7 +122,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -147,7 +149,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -160,7 +162,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -175,7 +177,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -190,7 +192,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -208,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_default_implementation() {
-        let analyzer = FormatArgsAnalyzer::default();
+        let analyzer = FormatArgsAnalyzer;
         assert_eq!(analyzer.name(), "format_args");
     }
 

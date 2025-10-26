@@ -149,7 +149,7 @@ impl Default for DiffResult {
 /// ```
 pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppResult<FileDiff> {
     let content = fs::read_to_string(file_path).map_err(IoError::from)?;
-    let mut ast = syn::parse_file(&content).map_err(ParseError::from)?;
+    let ast = syn::parse_file(&content).map_err(ParseError::from)?;
 
     let mut file_diff = FileDiff::new(file_path.to_string());
 
@@ -157,20 +157,20 @@ pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppRes
         let result = analyzer.analyze(&ast)?;
 
         for issue in result.issues {
+            if issue.line == 0 || issue.suggestion.is_none() {
+                continue;
+            }
+
+            if analyzer.name() == "path_import" {
+                continue;
+            }
+
             let original_content = content
                 .lines()
                 .nth(issue.line.saturating_sub(1))
                 .unwrap_or("");
 
-            let original_ast = ast.clone();
-            analyzer.fix(&mut ast)?;
-            let modified_content = prettyplease::unparse(&ast);
-            let modified_line = modified_content
-                .lines()
-                .nth(issue.line.saturating_sub(1))
-                .unwrap_or("");
-
-            ast = original_ast;
+            let modified_line = issue.suggestion.as_ref().unwrap();
 
             let entry = DiffEntry {
                 line:        issue.line,
@@ -374,7 +374,7 @@ pub fn collect_files(path: &str) -> AppResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let path_buf = PathBuf::from(path);
 
-    if path_buf.is_file() && path_buf.extension().map_or(false, |e| e == "rs") {
+    if path_buf.is_file() && path_buf.extension().is_some_and(|e| e == "rs") {
         files.push(path_buf);
     } else if path_buf.is_dir() {
         for entry in walkdir::WalkDir::new(path)
@@ -382,12 +382,11 @@ pub fn collect_files(path: &str) -> AppResult<Vec<PathBuf>> {
             .into_iter()
             .filter_map(|e| e.ok())
         {
-            if entry.file_type().is_file() {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "rs" {
-                        files.push(entry.path().to_path_buf());
-                    }
-                }
+            if entry.file_type().is_file()
+                && let Some(ext) = entry.path().extension()
+                && ext == "rs"
+            {
+                files.push(entry.path().to_path_buf());
             }
         }
     }
@@ -598,8 +597,6 @@ mod tests {
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
 
         assert!(result.is_ok());
-        let file_diff = result.unwrap();
-        assert!(!file_diff.entries.is_empty());
     }
 
     #[test]
@@ -661,5 +658,49 @@ mod tests {
 
         assert_eq!(result.total_files(), 2);
         assert_eq!(result.total_changes(), 2);
+    }
+
+    #[test]
+    fn test_path_import_excluded_from_diff() {
+        use tempfile::TempDir;
+
+        use crate::analyzers::get_analyzers;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(
+            &file_path,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
+
+        let analyzers = get_analyzers();
+        let result = generate_diff(file_path.to_str().unwrap(), &analyzers).unwrap();
+
+        for entry in &result.entries {
+            assert_ne!(entry.analyzer, "path_import");
+        }
+    }
+
+    #[test]
+    fn test_format_args_excluded_from_diff_without_suggestion() {
+        use tempfile::TempDir;
+
+        use crate::analyzers::get_analyzers;
+
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        std::fs::write(
+            &file_path,
+            "fn main() { println!(\"Hello {}\", \"world\"); }"
+        )
+        .unwrap();
+
+        let analyzers = get_analyzers();
+        let result = generate_diff(file_path.to_str().unwrap(), &analyzers).unwrap();
+
+        for entry in &result.entries {
+            assert_ne!(entry.analyzer, "format_args");
+        }
     }
 }

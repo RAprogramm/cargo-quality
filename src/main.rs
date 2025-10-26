@@ -28,7 +28,7 @@ use walkdir::WalkDir;
 
 use crate::{
     analyzers::get_analyzers,
-    cli::{Command, QualityArgs},
+    cli::{Command, QualityArgs, Shell},
     differ::{
         DiffResult, collect_files, generate_diff, show_full, show_interactive, show_summary
     },
@@ -72,7 +72,163 @@ fn main() -> AppResult<()> {
             help::display_help();
             return Ok(());
         }
+        Command::Completions {
+            shell
+        } => {
+            generate_completions(shell);
+            return Ok(());
+        }
+        Command::Setup => {
+            setup_completions()?;
+            return Ok(());
+        }
     }
+
+    Ok(())
+}
+
+/// Generate shell completions.
+///
+/// Outputs completion script for the specified shell to stdout.
+///
+/// # Arguments
+///
+/// * `shell` - Target shell for completion generation
+fn generate_completions(shell: Shell) {
+    use clap::CommandFactory;
+    use clap_complete::{Shell as CompShell, generate};
+
+    let mut cmd = crate::cli::CargoCli::command();
+    let bin_name = "cargo-quality";
+
+    let comp_shell = match shell {
+        Shell::Bash => CompShell::Bash,
+        Shell::Fish => CompShell::Fish,
+        Shell::Zsh => CompShell::Zsh,
+        Shell::PowerShell => CompShell::PowerShell,
+        Shell::Elvish => CompShell::Elvish
+    };
+
+    generate(comp_shell, &mut cmd, bin_name, &mut std::io::stdout());
+}
+
+/// Setup shell completions automatically.
+///
+/// Detects current shell and installs completions to standard location.
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok if setup succeeds
+fn setup_completions() -> AppResult<()> {
+    use std::env;
+
+    let shell_path = env::var("SHELL").unwrap_or_else(|_| String::from("/bin/sh"));
+    let shell_path_buf = PathBuf::from(&shell_path);
+    let shell_name = shell_path_buf
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("sh");
+
+    let (shell, comp_dir, file_name) = match shell_name {
+        "fish" => {
+            let dir = env::var("XDG_CONFIG_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| {
+                    PathBuf::from(env::var("HOME").unwrap_or_else(|_| String::from("~")))
+                        .join(".config")
+                })
+                .join("fish")
+                .join("completions");
+            (Shell::Fish, dir, "cargo.fish")
+        }
+        "bash" => {
+            let dir = env::var("XDG_DATA_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| {
+                    PathBuf::from(env::var("HOME").unwrap_or_else(|_| String::from("~")))
+                        .join(".local")
+                        .join("share")
+                })
+                .join("bash-completion")
+                .join("completions");
+            (Shell::Bash, dir, "cargo-quality")
+        }
+        "zsh" => {
+            let dir = env::var("XDG_DATA_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| {
+                    PathBuf::from(env::var("HOME").unwrap_or_else(|_| String::from("~")))
+                        .join(".local")
+                        .join("share")
+                })
+                .join("zsh")
+                .join("site-functions");
+            (Shell::Zsh, dir, "_cargo-quality")
+        }
+        _ => {
+            println!("❌ Unsupported shell: {}", shell_name);
+            println!("Supported shells: bash, fish, zsh");
+            println!("\nManual installation:");
+            println!("  cargo quality completions <shell> > <completion-file>");
+            return Ok(());
+        }
+    };
+
+    fs::create_dir_all(&comp_dir).map_err(IoError::from)?;
+
+    let comp_file = comp_dir.join(file_name);
+
+    if shell_name == "fish" {
+        let fish_completions = r#"# Completion for cargo quality subcommand
+complete -c cargo -n "__fish_seen_subcommand_from quality" -s h -l help -d 'Print help'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "check" -d 'Check code quality'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fix" -d 'Fix quality issues'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "format" -d 'Format code'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fmt" -d 'Run cargo +nightly fmt'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "diff" -d 'Show proposed changes'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "help" -d 'Display help'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "completions" -d 'Generate completions'
+complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "setup" -d 'Setup completions'
+
+# Diff options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from diff" -s s -l summary -d 'Brief summary'
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from diff" -s i -l interactive -d 'Interactive mode'
+
+# Check options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from check" -s v -l verbose -d 'Detailed output'
+
+# Fix options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from fix" -s d -l dry-run -d 'Dry run'
+
+# Completions options
+complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from completions" -f -a "bash fish zsh powershell elvish"
+"#;
+        fs::write(&comp_file, fish_completions).map_err(IoError::from)?;
+    } else {
+        use clap::CommandFactory;
+        use clap_complete::{Shell as CompShell, generate};
+
+        let mut cmd = crate::cli::CargoCli::command();
+        let comp_shell = match shell {
+            Shell::Bash => CompShell::Bash,
+            Shell::Zsh => CompShell::Zsh,
+            _ => unreachable!()
+        };
+
+        let mut file = fs::File::create(&comp_file).map_err(IoError::from)?;
+        generate(comp_shell, &mut cmd, "cargo-quality", &mut file);
+    }
+
+    println!(
+        "✓ {} completions installed to: {}",
+        shell_name,
+        comp_file.display()
+    );
+    println!(
+        "\nCompletions will be available in new {} sessions",
+        shell_name
+    );
+    println!("Or run: source {}", comp_file.display());
 
     Ok(())
 }
@@ -262,7 +418,7 @@ fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let path_buf = PathBuf::from(path);
 
-    if path_buf.is_file() && path_buf.extension().map_or(false, |e| e == "rs") {
+    if path_buf.is_file() && path_buf.extension().is_some_and(|e| e == "rs") {
         files.push(path_buf);
     } else if path_buf.is_dir() {
         for entry in WalkDir::new(path)
@@ -270,12 +426,11 @@ fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
             .into_iter()
             .filter_map(|e| e.ok())
         {
-            if entry.file_type().is_file() {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "rs" {
-                        files.push(entry.path().to_path_buf());
-                    }
-                }
+            if entry.file_type().is_file()
+                && let Some(ext) = entry.path().extension()
+                && ext == "rs"
+            {
+                files.push(entry.path().to_path_buf());
             }
         }
     }

@@ -11,9 +11,9 @@
 //! - Associated constants (should NOT be imported)
 
 use masterror::AppResult;
-use quote::ToTokens;
 use syn::{
     ExprMethodCall, ExprPath, File, Path,
+    spanned::Spanned,
     visit::Visit,
     visit_mut::{self, VisitMut}
 };
@@ -97,6 +97,18 @@ impl PathImportAnalyzer {
             return false;
         }
 
+        if path.segments.len() >= 2 {
+            let second_to_last = path.segments.iter().rev().nth(1);
+            if let Some(seg) = second_to_last {
+                let seg_name = seg.ident.to_string();
+                if let Some(c) = seg_name.chars().next()
+                    && c.is_uppercase()
+                {
+                    return false;
+                }
+            }
+        }
+
         if Self::is_stdlib_root(&first_name) {
             return true;
         }
@@ -145,7 +157,7 @@ impl Analyzer for PathImportAnalyzer {
         let mut visitor = PathVisitor {
             issues: Vec::new()
         };
-        visitor.visit_file(&mut ast.clone());
+        visitor.visit_file(ast);
 
         let fixable_count = visitor.issues.len();
 
@@ -171,11 +183,21 @@ struct PathVisitor {
 impl PathVisitor {
     fn check_path(&mut self, path: &Path) {
         if PathImportAnalyzer::should_extract_to_import(path) {
+            let span = path.span();
+            let start = span.start();
+
+            let path_str = path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::");
+
             self.issues.push(Issue {
-                line:       0,
-                column:     0,
-                message:    format!("Use import instead of path: {}", path.to_token_stream()),
-                suggestion: Some(format!("use {};", path.to_token_stream()))
+                line:       start.line,
+                column:     start.column,
+                message:    format!("Use import instead of path: {}", path_str),
+                suggestion: Some(format!("use {};", path_str))
             });
         }
     }
@@ -226,7 +248,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -265,6 +287,7 @@ mod tests {
                 let v = Vec::new();
                 let s = String::from("hello");
                 let p = PathBuf::from("/path");
+                let m = std::collections::HashMap::new();
             }
         };
 
@@ -308,13 +331,13 @@ mod tests {
         let analyzer = PathImportAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                let handle = tokio::runtime::Runtime::new();
-                let client = reqwest::blocking::Client::new();
+                let content = std::fs::read("file");
+                let data = std::io::stdin();
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() >= 2);
+        assert_eq!(result.issues.len(), 2);
     }
 
     #[test]
@@ -348,7 +371,7 @@ mod tests {
 
     #[test]
     fn test_default_implementation() {
-        let analyzer = PathImportAnalyzer::default();
+        let analyzer = PathImportAnalyzer;
         assert_eq!(analyzer.name(), "path_import");
     }
 
@@ -375,7 +398,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -383,13 +406,12 @@ mod tests {
         let analyzer = PathImportAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                use alloc::vec;
-                let v = alloc::vec::Vec::new();
+                let data = alloc::format::format(format_args!("test"));
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -423,12 +445,13 @@ mod tests {
         let analyzer = PathImportAnalyzer::new();
         let code: File = parse_quote! {
             fn main() {
-                let v: std::vec::Vec<i32> = std::vec::Vec::new();
+                let content = std::fs::read_to_string("file.txt");
+                let data = std::io::stdin();
             }
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() >= 1);
+        assert!(!result.issues.is_empty());
     }
 
     #[test]
@@ -455,7 +478,7 @@ mod tests {
         };
 
         let result = analyzer.analyze(&code).unwrap();
-        assert!(result.issues.len() > 0);
+        assert!(!result.issues.is_empty());
         let issue = &result.issues[0];
         assert!(issue.message.contains("Use import instead of path"));
         assert!(issue.suggestion.is_some());
