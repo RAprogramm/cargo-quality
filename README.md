@@ -12,6 +12,45 @@ Professional Rust code quality analysis tool with hardcoded standards.
 
 cargo-quality is a command-line tool that enforces consistent code quality standards across Rust projects without requiring local configuration files. All quality rules are hardcoded in the binary, ensuring uniform formatting and analysis across your entire codebase and organization.
 
+## Philosophy & Standards
+
+This tool is built on principles defined in [RustManifest](https://github.com/RAprogramm/RustManifest) - a comprehensive Rust engineering standards template.
+
+### Why cargo-quality exists
+
+Modern Rust development lacks a unified, zero-configuration quality tool that:
+
+1. **Eliminates Configuration Sprawl** - Projects accumulate `.rustfmt.toml`, `.clippy.toml`, and custom scripts, each requiring maintenance and synchronization across repositories.
+
+2. **Enforces Team Standards** - Without a central tool, each developer interprets "good code" differently, leading to inconsistent code reviews and merge conflicts.
+
+3. **Provides Instant Feedback** - Developers need immediate, actionable feedback on code quality without waiting for CI pipelines or manual reviews.
+
+4. **Bridges the Gap** - While `rustfmt` handles formatting and `clippy` catches bugs, neither enforces higher-level architectural patterns like import organization or argument naming conventions.
+
+### The Solution
+
+cargo-quality embeds battle-tested standards from RustManifest directly into its binary:
+
+- **Single Source of Truth** - All rules versioned with the tool, not scattered across repositories
+- **Zero Configuration** - Install once, use everywhere with identical behavior
+- **Automated Enforcement** - From local development to CI/CD, same checks, same results
+- **Actionable Fixes** - Not just detection, but automatic corrections with preview capabilities
+
+This tool serves teams that value consistency, automation, and professional engineering practices over ad-hoc configurations.
+
+### RustManifest Integration
+
+[RustManifest](https://github.com/RAprogramm/RustManifest) defines:
+- Code formatting standards (line width, brace style, import organization)
+- Naming conventions (snake_case, PascalCase, SCREAMING_SNAKE_CASE)
+- Error handling patterns (Result types, no panics outside tests)
+- Documentation practices (/// docblocks, no inline comments)
+- Git workflow (issue-linked branches, structured commits)
+- Testing requirements (unit, integration, doctests)
+
+cargo-quality implements these standards as enforceable rules, making RustManifest principles executable and verifiable across your entire codebase.
+
 ## Features
 
 - **Hardcoded Quality Standards** - Single source of truth for code quality
@@ -359,4 +398,5 @@ SPDX-License-Identifier: MIT
 - **Author**: RAprogramm
 - **Repository**: https://github.com/RAprogramm/cargo-quality
 - **Documentation**: https://docs.rs/cargo-quality
+- **Standards**: [RustManifest](https://github.com/RAprogramm/RustManifest)
 - **License**: MIT
