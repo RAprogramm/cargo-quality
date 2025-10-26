@@ -3,8 +3,7 @@
 
 use std::{
     fs,
-    io::{self, Write},
-    path::PathBuf
+    io::{self, Write}
 };
 
 use masterror::AppResult;
@@ -357,39 +356,6 @@ pub fn show_interactive(result: &DiffResult) -> AppResult<Vec<DiffEntry>> {
     Ok(selected)
 }
 
-/// Collects Rust files from path.
-///
-/// # Arguments
-///
-/// * `path` - Directory or file path
-///
-/// # Returns
-///
-/// `AppResult<Vec<PathBuf>>` - List of Rust files
-pub fn collect_files(path: &str) -> AppResult<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    let path_buf = PathBuf::from(path);
-
-    if path_buf.is_file() && path_buf.extension().is_some_and(|e| e == "rs") {
-        files.push(path_buf);
-    } else if path_buf.is_dir() {
-        for entry in walkdir::WalkDir::new(path)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_file()
-                && let Some(ext) = entry.path().extension()
-                && ext == "rs"
-            {
-                files.push(entry.path().to_path_buf());
-            }
-        }
-    }
-
-    Ok(files)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -523,56 +489,6 @@ mod tests {
         result.add_file(file_diff);
 
         show_full(&result);
-    }
-
-    #[test]
-    fn test_collect_files_single_file() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
-        std::fs::write(&file_path, "fn main() {}").unwrap();
-
-        let result = collect_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 1);
-    }
-
-    #[test]
-    fn test_collect_files_directory() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let file1 = temp_dir.path().join("test1.rs");
-        let file2 = temp_dir.path().join("test2.rs");
-        let file3 = temp_dir.path().join("test.txt");
-
-        std::fs::write(&file1, "fn test1() {}").unwrap();
-        std::fs::write(&file2, "fn test2() {}").unwrap();
-        std::fs::write(&file3, "not rust").unwrap();
-
-        let result = collect_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 2);
-    }
-
-    #[test]
-    fn test_collect_files_empty_dir() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let result = collect_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 0);
-    }
-
-    #[test]
-    fn test_collect_files_non_rust() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-        std::fs::write(&file_path, "not rust").unwrap();
-
-        let result = collect_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 0);
     }
 
     #[test]

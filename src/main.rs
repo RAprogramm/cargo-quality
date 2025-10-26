@@ -24,15 +24,13 @@
 use std::{fs, path::PathBuf};
 
 use masterror::AppResult;
-use walkdir::WalkDir;
 
 use crate::{
     analyzers::get_analyzers,
     cli::{Command, QualityArgs, Shell},
-    differ::{
-        DiffResult, collect_files, generate_diff, show_full, show_interactive, show_summary
-    },
+    differ::{DiffResult, generate_diff, show_full, show_interactive, show_summary},
     error::{IoError, ParseError},
+    file_utils::collect_rust_files,
     report::Report
 };
 
@@ -41,6 +39,7 @@ mod analyzers;
 mod cli;
 mod differ;
 mod error;
+mod file_utils;
 mod formatter;
 mod help;
 mod report;
@@ -368,7 +367,7 @@ fn format_quality(path: &str) -> AppResult<()> {
 /// run_diff("src/", false, false).unwrap();
 /// ```
 fn run_diff(path: &str, summary: bool, interactive: bool) -> AppResult<()> {
-    let files = collect_files(path)?;
+    let files = collect_rust_files(path)?;
     let analyzers = get_analyzers();
 
     let mut result = DiffResult::new();
@@ -394,50 +393,6 @@ fn run_diff(path: &str, summary: bool, interactive: bool) -> AppResult<()> {
     Ok(())
 }
 
-/// Collect all Rust source files from a path.
-///
-/// Recursively walks directories to find all `.rs` files. Follows symbolic
-/// links.
-///
-/// # Arguments
-///
-/// * `path` - File or directory path to search
-///
-/// # Returns
-///
-/// `AppResult<Vec<PathBuf>>` - List of Rust file paths found
-///
-/// # Examples
-///
-/// ```no_run
-/// use cargo_quality::collect_rust_files;
-/// let files = collect_rust_files("src/").unwrap();
-/// assert!(files.len() > 0);
-/// ```
-fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    let path_buf = PathBuf::from(path);
-
-    if path_buf.is_file() && path_buf.extension().is_some_and(|e| e == "rs") {
-        files.push(path_buf);
-    } else if path_buf.is_dir() {
-        for entry in WalkDir::new(path)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_file()
-                && let Some(ext) = entry.path().extension()
-                && ext == "rs"
-            {
-                files.push(entry.path().to_path_buf());
-            }
-        }
-    }
-
-    Ok(files)
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -445,39 +400,6 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-
-    #[test]
-    fn test_collect_rust_files_empty_dir() {
-        let temp_dir = std::env::temp_dir();
-        let result = collect_rust_files(temp_dir.to_str().unwrap());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_collect_rust_files_single_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, "fn main() {}").unwrap();
-
-        let result = collect_rust_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], file_path);
-    }
-
-    #[test]
-    fn test_collect_rust_files_directory() {
-        let temp_dir = TempDir::new().unwrap();
-        let file1 = temp_dir.path().join("file1.rs");
-        let file2 = temp_dir.path().join("file2.rs");
-        let file3 = temp_dir.path().join("file.txt");
-
-        fs::write(&file1, "fn test1() {}").unwrap();
-        fs::write(&file2, "fn test2() {}").unwrap();
-        fs::write(&file3, "not rust").unwrap();
-
-        let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 2);
-    }
 
     #[test]
     fn test_check_quality() {
@@ -524,16 +446,6 @@ mod tests {
     }
 
     #[test]
-    fn test_collect_rust_files_non_rust_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-        fs::write(&file_path, "not rust").unwrap();
-
-        let result = collect_rust_files(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 0);
-    }
-
-    #[test]
     fn test_check_quality_parse_error() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("bad.rs");
@@ -565,22 +477,6 @@ mod tests {
 
         let result = fix_quality(temp_dir.path().to_str().unwrap(), false);
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_collect_rust_files_nested_directories() {
-        let temp_dir = TempDir::new().unwrap();
-        let nested_dir = temp_dir.path().join("src").join("nested");
-        fs::create_dir_all(&nested_dir).unwrap();
-
-        let file1 = temp_dir.path().join("test.rs");
-        let file2 = nested_dir.join("nested.rs");
-
-        fs::write(&file1, "fn test1() {}").unwrap();
-        fs::write(&file2, "fn test2() {}").unwrap();
-
-        let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.len(), 2);
     }
 
     #[test]
