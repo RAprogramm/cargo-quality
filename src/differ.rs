@@ -7,9 +7,9 @@
 //! width, offering vertical layout for narrow terminals and side-by-side for
 //! wider displays.
 
-mod display;
+pub mod display;
 mod generator;
-mod types;
+pub mod types;
 
 pub use display::{show_full, show_interactive, show_summary};
 pub use generator::generate_diff;
