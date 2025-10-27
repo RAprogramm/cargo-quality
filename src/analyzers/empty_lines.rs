@@ -8,7 +8,7 @@
 //! function does multiple things.
 
 use masterror::AppResult;
-use syn::{File, Item, ItemFn, spanned::Spanned, visit::Visit};
+use syn::{File, ImplItem, Item, ItemFn, ItemImpl, spanned::Spanned, visit::Visit};
 
 use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue};
 
@@ -50,11 +50,8 @@ impl EmptyLinesAnalyzer {
     /// # Returns
     ///
     /// Vector of issues found
-    fn check_function(func: &ItemFn, content: &str) -> Vec<Issue> {
+    fn check_block(start_line: usize, end_line: usize, content: &str) -> Vec<Issue> {
         let mut issues = Vec::new();
-        let span = func.block.span();
-        let start_line = span.start().line;
-        let end_line = span.end().line;
 
         if start_line >= end_line {
             return issues;
@@ -70,9 +67,6 @@ impl EmptyLinesAnalyzer {
             };
 
             if line.trim().is_empty() {
-                let prev_idx = idx.saturating_sub(1);
-                let next_idx = idx + 1;
-
                 let is_first = line_num == start_line;
                 let is_last = line_num == end_line.saturating_sub(1);
 
@@ -80,16 +74,9 @@ impl EmptyLinesAnalyzer {
                     continue;
                 }
 
-                let prev_is_brace = lines
-                    .get(prev_idx)
-                    .map(|l| l.trim().ends_with('{'))
-                    .unwrap_or(false);
-                let next_is_brace = lines
-                    .get(next_idx)
-                    .map(|l| l.trim() == "}")
-                    .unwrap_or(false);
-
-                if prev_is_brace || next_is_brace {
+                if Self::is_after_opening_brace(&lines, idx)
+                    || Self::is_before_closing_brace(&lines, idx)
+                {
                     continue;
                 }
 
@@ -100,6 +87,90 @@ impl EmptyLinesAnalyzer {
                         .to_string(),
                     fix:     Fix::Simple(String::new())
                 });
+            }
+        }
+
+        issues
+    }
+
+    /// Check if empty line is right after opening brace.
+    ///
+    /// Handles both same-line and next-line brace styles.
+    ///
+    /// # Arguments
+    ///
+    /// * `lines` - Source code lines
+    /// * `idx` - Index of empty line (0-based)
+    #[inline]
+    fn is_after_opening_brace(lines: &[&str], idx: usize) -> bool {
+        if idx == 0 {
+            return false;
+        }
+
+        let prev_idx = idx.saturating_sub(1);
+
+        if let Some(prev) = lines.get(prev_idx) {
+            let trimmed = prev.trim();
+            if trimmed.ends_with('{') || trimmed == "{" {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Check if empty line is right before closing brace.
+    ///
+    /// Handles both same-line and next-line brace styles.
+    ///
+    /// # Arguments
+    ///
+    /// * `lines` - Source code lines
+    /// * `idx` - Index of empty line (0-based)
+    #[inline]
+    fn is_before_closing_brace(lines: &[&str], idx: usize) -> bool {
+        let next_idx = idx + 1;
+
+        if let Some(next) = lines.get(next_idx) {
+            let trimmed = next.trim();
+            if trimmed == "}" || trimmed.starts_with('}') {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Check standalone function for empty lines.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - Function item to analyze
+    /// * `content` - Source code content
+    fn check_function(func: &ItemFn, content: &str) -> Vec<Issue> {
+        let span = func.block.span();
+        let start_line = span.start().line;
+        let end_line = span.end().line;
+
+        Self::check_block(start_line, end_line, content)
+    }
+
+    /// Check impl block methods for empty lines.
+    ///
+    /// # Arguments
+    ///
+    /// * `impl_block` - Impl block to analyze
+    /// * `content` - Source code content
+    fn check_impl_block(impl_block: &ItemImpl, content: &str) -> Vec<Issue> {
+        let mut issues = Vec::new();
+
+        for item in &impl_block.items {
+            if let ImplItem::Fn(method) = item {
+                let span = method.block.span();
+                let start_line = span.start().line;
+                let end_line = span.end().line;
+
+                issues.extend(Self::check_block(start_line, end_line, content));
             }
         }
 
@@ -139,9 +210,16 @@ struct FunctionVisitor {
 
 impl<'ast> Visit<'ast> for FunctionVisitor {
     fn visit_item(&mut self, node: &'ast Item) {
-        if let Item::Fn(func) = node {
-            let func_issues = EmptyLinesAnalyzer::check_function(func, &self.content);
-            self.issues.extend(func_issues);
+        match node {
+            Item::Fn(func) => {
+                let func_issues = EmptyLinesAnalyzer::check_function(func, &self.content);
+                self.issues.extend(func_issues);
+            }
+            Item::Impl(impl_block) => {
+                let impl_issues = EmptyLinesAnalyzer::check_impl_block(impl_block, &self.content);
+                self.issues.extend(impl_issues);
+            }
+            _ => {}
         }
         syn::visit::visit_item(self, node);
     }
@@ -321,5 +399,115 @@ fn second() {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 2);
+    }
+
+    #[test]
+    fn test_detect_empty_line_in_method() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content = r#"struct Foo;
+
+impl Foo {
+    fn method(&self) {
+        let x = 1;
+
+        let y = 2;
+    }
+}"#;
+        let code = syn::parse_str(content).unwrap();
+
+        let result = analyzer.analyze(&code, content).unwrap();
+        assert_eq!(result.issues.len(), 1);
+        assert_eq!(result.issues[0].line, 6);
+    }
+
+    #[test]
+    fn test_ignore_empty_line_after_opening_brace_on_new_line() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content = r#"fn main()
+{
+
+    let x = 1;
+}"#;
+        let code = syn::parse_str(content).unwrap();
+
+        let result = analyzer.analyze(&code, content).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_ignore_empty_line_before_closing_brace_on_own_line() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content = r#"fn main()
+{
+    let x = 1;
+
+}"#;
+        let code = syn::parse_str(content).unwrap();
+
+        let result = analyzer.analyze(&code, content).unwrap();
+        assert_eq!(result.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_formatted_code_with_braces_on_new_lines() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content = r#"fn main()
+{
+    let x = 1;
+
+    let y = 2;
+}"#;
+        let code = syn::parse_str(content).unwrap();
+
+        let result = analyzer.analyze(&code, content).unwrap();
+        assert_eq!(result.issues.len(), 1);
+        assert_eq!(result.issues[0].line, 4);
+    }
+
+    #[test]
+    fn test_impl_block_with_multiple_methods() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content = r#"struct Foo;
+
+impl Foo
+{
+    fn first(&self)
+    {
+        let a = 1;
+
+        let b = 2;
+    }
+
+    fn second(&self)
+    {
+        let x = 3;
+
+        let y = 4;
+    }
+}"#;
+        let code = syn::parse_str(content).unwrap();
+
+        let result = analyzer.analyze(&code, content).unwrap();
+        assert_eq!(result.issues.len(), 2);
+    }
+
+    #[test]
+    fn test_ignore_empty_lines_between_methods() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content = r#"struct Foo;
+
+impl Foo {
+    fn first(&self) {
+        let x = 1;
+    }
+
+    fn second(&self) {
+        let y = 2;
+    }
+}"#;
+        let code = syn::parse_str(content).unwrap();
+
+        let result = analyzer.analyze(&code, content).unwrap();
+        assert_eq!(result.issues.len(), 0);
     }
 }
