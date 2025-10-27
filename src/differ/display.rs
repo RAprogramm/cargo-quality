@@ -68,24 +68,27 @@ fn group_imports(imports: &[&str]) -> Vec<String> {
             paths.sort();
 
             let common_prefix = find_common_prefix(&paths);
-            if !common_prefix.is_empty() && common_prefix.contains("::") {
-                let prefix_parts: Vec<&str> = common_prefix.split("::").collect();
-                let prefix_path = prefix_parts[..prefix_parts.len() - 1].join("::");
+            if !common_prefix.is_empty() {
+                let prefix_with_sep = if paths[0].starts_with(&format!("{}::", common_prefix)) {
+                    format!("{}::", common_prefix)
+                } else {
+                    common_prefix.clone()
+                };
 
                 let suffixes: Vec<String> = paths
                     .iter()
                     .map(|p| {
-                        p.strip_prefix(&format!("{}::", common_prefix))
-                            .unwrap_or(p.strip_prefix(&common_prefix).unwrap_or(p.as_str()))
+                        p.strip_prefix(&prefix_with_sep)
+                            .unwrap_or(p.as_str())
                             .to_string()
                     })
                     .collect();
 
-                if !prefix_path.is_empty() {
+                if prefix_with_sep.ends_with("::") {
                     result.push(format!(
                         "use {}::{}::{{{}}};",
                         root,
-                        prefix_path,
+                        common_prefix,
                         suffixes.join(", ")
                     ));
                 } else {
@@ -128,7 +131,7 @@ fn find_common_prefix(paths: &[String]) -> String {
         }
     }
 
-    if common.len() > 1 {
+    if !common.is_empty() {
         common.join("::")
     } else {
         String::new()
