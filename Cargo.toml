@@ -24,6 +24,8 @@ masterror = "0.24"
 walkdir = "2"
 prettyplease = "0.2"
 owo-colors = "4"
+terminal_size = "0.4"
+unicode-width = "0.2"
 
 [dev-dependencies]
 criterion = "0.7"
