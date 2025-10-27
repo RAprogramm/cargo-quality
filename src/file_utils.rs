@@ -33,20 +33,19 @@ pub fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
     if path_buf.is_file() && path_buf.extension().is_some_and(|e| e == "rs") {
         files.push(path_buf);
     } else if path_buf.is_dir() {
-        for result in WalkBuilder::new(path)
+        for entry in WalkBuilder::new(path)
             .follow_links(true)
             .git_ignore(true)
             .git_global(true)
             .git_exclude(true)
             .build()
+            .flatten()
         {
-            if let Ok(entry) = result {
-                if entry.file_type().is_some_and(|ft| ft.is_file())
-                    && let Some(ext) = entry.path().extension()
-                    && ext == "rs"
-                {
-                    files.push(entry.path().to_path_buf());
-                }
+            if entry.file_type().is_some_and(|ft| ft.is_file())
+                && let Some(ext) = entry.path().extension()
+                && ext == "rs"
+            {
+                files.push(entry.path().to_path_buf());
             }
         }
     }
