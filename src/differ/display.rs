@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap, HashSet},
     io::{self, Write}
 };
 
+use console::measure_text_width;
 use masterror::AppResult;
 use owo_colors::OwoColorize;
 use terminal_size::{Width, terminal_size};
-use unicode_width::UnicodeWidthStr;
 
 use super::types::{DiffEntry, DiffResult, FileDiff};
 use crate::error::IoError;
@@ -26,6 +26,115 @@ struct RenderedFile {
     width: usize
 }
 
+/// Groups imports by root module and formats them.
+///
+/// # Arguments
+///
+/// * `imports` - List of import statements
+///
+/// # Returns
+///
+/// Formatted and grouped import statements
+fn group_imports(imports: &[&str]) -> Vec<String> {
+    let unique: HashSet<&str> = imports.iter().copied().collect();
+
+    let mut grouped: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+    for import in unique {
+        let import_str = import
+            .trim_start_matches("use ")
+            .trim_end_matches(';')
+            .trim();
+
+        if let Some(double_colon_pos) = import_str.find("::") {
+            let root = import_str[..double_colon_pos].to_string();
+            let path = import_str[double_colon_pos + 2..].to_string();
+            grouped.entry(root).or_default().push(path);
+        } else {
+            grouped
+                .entry(import_str.to_string())
+                .or_default()
+                .push(String::new());
+        }
+    }
+
+    let mut result = Vec::new();
+    for (root, mut paths) in grouped {
+        if paths.len() == 1 && !paths[0].is_empty() {
+            result.push(format!("use {}::{};", root, paths[0]));
+        } else if paths.len() == 1 && paths[0].is_empty() {
+            result.push(format!("use {};", root));
+        } else {
+            paths.sort();
+
+            let common_prefix = find_common_prefix(&paths);
+            if !common_prefix.is_empty() && common_prefix.contains("::") {
+                let prefix_parts: Vec<&str> = common_prefix.split("::").collect();
+                let prefix_path = prefix_parts[..prefix_parts.len() - 1].join("::");
+
+                let suffixes: Vec<String> = paths
+                    .iter()
+                    .map(|p| {
+                        p.strip_prefix(&format!("{}::", common_prefix))
+                            .unwrap_or(p.strip_prefix(&common_prefix).unwrap_or(p.as_str()))
+                            .to_string()
+                    })
+                    .collect();
+
+                if !prefix_path.is_empty() {
+                    result.push(format!(
+                        "use {}::{}::{{{}}};",
+                        root,
+                        prefix_path,
+                        suffixes.join(", ")
+                    ));
+                } else {
+                    result.push(format!("use {}::{{{}}};", root, suffixes.join(", ")));
+                }
+            } else {
+                result.push(format!("use {}::{{{}}};", root, paths.join(", ")));
+            }
+        }
+    }
+
+    result
+}
+
+/// Finds common prefix among paths.
+///
+/// # Arguments
+///
+/// * `paths` - List of paths
+///
+/// # Returns
+///
+/// Common prefix string
+fn find_common_prefix(paths: &[String]) -> String {
+    if paths.is_empty() {
+        return String::new();
+    }
+
+    let parts: Vec<Vec<&str>> = paths.iter().map(|p| p.split("::").collect()).collect();
+
+    let min_len = parts.iter().map(|p| p.len()).min().unwrap_or(0);
+
+    let mut common = Vec::new();
+    for i in 0..min_len {
+        let first = parts[0][i];
+        if parts.iter().all(|p| p[i] == first) {
+            common.push(first);
+        } else {
+            break;
+        }
+    }
+
+    if common.len() > 1 {
+        common.join("::")
+    } else {
+        String::new()
+    }
+}
+
 /// Renders a single file diff block into lines.
 ///
 /// # Arguments
@@ -40,11 +149,11 @@ fn render_file_block(file: &FileDiff) -> RenderedFile {
     let mut max_width = 0;
 
     let header = format!("File: {}", file.path);
-    max_width = max_width.max(header.width());
+    max_width = max_width.max(measure_text_width(&header));
     lines.push(header.cyan().bold().to_string());
 
     let separator = "─".repeat(40);
-    max_width = max_width.max(separator.width());
+    max_width = max_width.max(measure_text_width(&separator));
     lines.push(separator.dimmed().to_string());
 
     let imports: Vec<&str> = file
@@ -55,12 +164,13 @@ fn render_file_block(file: &FileDiff) -> RenderedFile {
 
     if !imports.is_empty() {
         let import_header = "Imports (file top)";
-        max_width = max_width.max(import_header.width());
+        max_width = max_width.max(measure_text_width(import_header));
         lines.push(import_header.dimmed().to_string());
 
-        for import in imports {
+        let grouped = group_imports(&imports);
+        for import in grouped {
             let import_line = format!("+    {}", import);
-            max_width = max_width.max(import_line.width());
+            max_width = max_width.max(measure_text_width(&import_line));
             lines.push(import_line.green().to_string());
         }
         lines.push(String::new());
@@ -80,29 +190,29 @@ fn render_file_block(file: &FileDiff) -> RenderedFile {
                     .filter(|e| e.analyzer == entry.analyzer)
                     .count()
             );
-            max_width = max_width.max(analyzer_line.width());
+            max_width = max_width.max(measure_text_width(&analyzer_line));
             lines.push(analyzer_line.green().bold().to_string());
             lines.push(String::new());
             last_analyzer = &entry.analyzer;
         }
 
         let line_header = format!("Line {}", entry.line);
-        max_width = max_width.max(line_header.width());
+        max_width = max_width.max(measure_text_width(&line_header));
         lines.push(line_header.cyan().to_string());
 
         let old_line = format!("-    {}", entry.original);
-        max_width = max_width.max(old_line.width());
+        max_width = max_width.max(measure_text_width(&old_line));
         lines.push(old_line.red().to_string());
 
         let new_line = format!("+    {}", entry.modified);
-        max_width = max_width.max(new_line.width());
+        max_width = max_width.max(measure_text_width(&new_line));
         lines.push(new_line.green().to_string());
 
         lines.push(String::new());
     }
 
     let end_separator = "═".repeat(40);
-    max_width = max_width.max(end_separator.width());
+    max_width = max_width.max(measure_text_width(&end_separator));
     lines.push(end_separator.dimmed().to_string());
 
     RenderedFile {
@@ -146,14 +256,14 @@ fn calculate_columns(files: &[RenderedFile], term_width: usize) -> usize {
 ///
 /// # Arguments
 ///
-/// * `text` - Text to pad
+/// * `text` - Text to pad (may contain ANSI escape codes)
 /// * `width` - Target width
 ///
 /// # Returns
 ///
 /// Padded string
 fn pad_to_width(text: &str, width: usize) -> String {
-    let current = text.width();
+    let current = measure_text_width(text);
     if current >= width {
         return text.to_string();
     }
