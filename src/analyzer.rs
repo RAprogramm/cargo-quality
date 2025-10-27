@@ -180,7 +180,7 @@ pub struct AnalysisResult {
 ///         "my_analyzer"
 ///     }
 ///
-///     fn analyze(&self, ast: &File) -> AppResult<AnalysisResult> {
+///     fn analyze(&self, ast: &File, content: &str) -> AppResult<AnalysisResult> {
 ///         Ok(AnalysisResult::default())
 ///     }
 ///
@@ -200,11 +200,12 @@ pub trait Analyzer {
     /// # Arguments
     ///
     /// * `ast` - Parsed Rust syntax tree to analyze
+    /// * `content` - Source code content for analyzers that need raw text
     ///
     /// # Returns
     ///
     /// `AppResult<AnalysisResult>` - Analysis results or error
-    fn analyze(&self, ast: &File) -> AppResult<AnalysisResult>;
+    fn analyze(&self, ast: &File, content: &str) -> AppResult<AnalysisResult>;
 
     /// Apply automatic fixes to syntax tree.
     ///

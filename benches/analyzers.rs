@@ -41,11 +41,11 @@ fn bench_path_import_analyzer(c: &mut Criterion) {
     );
 
     c.bench_function("path_import_simple", |b| {
-        b.iter(|| analyzer.analyze(black_box(&simple_code)))
+        b.iter(|| analyzer.analyze(black_box(&simple_code), ""))
     });
 
     c.bench_function("path_import_complex", |b| {
-        b.iter(|| analyzer.analyze(black_box(&complex_code)))
+        b.iter(|| analyzer.analyze(black_box(&complex_code), ""))
     });
 }
 
@@ -72,11 +72,11 @@ fn bench_format_args_analyzer(c: &mut Criterion) {
     );
 
     c.bench_function("format_args_simple", |b| {
-        b.iter(|| analyzer.analyze(black_box(&simple_code)))
+        b.iter(|| analyzer.analyze(black_box(&simple_code), ""))
     });
 
     c.bench_function("format_args_complex", |b| {
-        b.iter(|| analyzer.analyze(black_box(&complex_code)))
+        b.iter(|| analyzer.analyze(black_box(&complex_code), ""))
     });
 }
 

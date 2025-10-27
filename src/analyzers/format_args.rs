@@ -47,7 +47,7 @@ impl Analyzer for FormatArgsAnalyzer {
         "format_args"
     }
 
-    fn analyze(&self, ast: &File) -> AppResult<AnalysisResult> {
+    fn analyze(&self, ast: &File, _content: &str) -> AppResult<AnalysisResult> {
         let mut visitor = FormatVisitor {
             issues: Vec::new()
         };
@@ -125,7 +125,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -139,7 +139,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -153,7 +153,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -166,7 +166,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -179,7 +179,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -194,7 +194,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -209,7 +209,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -241,7 +241,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 }

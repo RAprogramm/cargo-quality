@@ -37,7 +37,7 @@ pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppRes
     let mut file_diff = FileDiff::new(file_path.to_string());
 
     for analyzer in analyzers {
-        let result = analyzer.analyze(&ast)?;
+        let result = analyzer.analyze(&ast, &content)?;
 
         for issue in result.issues {
             if issue.line == 0 || !issue.fix.is_available() {

@@ -18,7 +18,7 @@
 //!     }
 //! "#;
 //! let ast = syn::parse_file(code).unwrap();
-//! let result = analyzer.analyze(&ast).unwrap();
+//! let result = analyzer.analyze(&ast, code).unwrap();
 //! assert!(!result.issues.is_empty());
 //! ```
 

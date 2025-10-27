@@ -3,12 +3,13 @@
 
 use std::path::PathBuf;
 
+use ignore::WalkBuilder;
 use masterror::AppResult;
-use walkdir::WalkDir;
 
 /// Collects all Rust source files from given path.
 ///
 /// Recursively walks through directories and finds all `.rs` files.
+/// Respects .gitignore, .ignore, and other ignore files.
 ///
 /// # Arguments
 ///
@@ -32,12 +33,15 @@ pub fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
     if path_buf.is_file() && path_buf.extension().is_some_and(|e| e == "rs") {
         files.push(path_buf);
     } else if path_buf.is_dir() {
-        for entry in WalkDir::new(path)
+        for entry in WalkBuilder::new(path)
             .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
+            .git_ignore(true)
+            .git_global(true)
+            .git_exclude(true)
+            .build()
+            .flatten()
         {
-            if entry.file_type().is_file()
+            if entry.file_type().is_some_and(|ft| ft.is_file())
                 && let Some(ext) = entry.path().extension()
                 && ext == "rs"
             {
@@ -110,5 +114,49 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_collect_rust_files_respects_ignore() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let file1 = temp_dir.path().join("included.rs");
+        fs::write(&file1, "fn main() {}").unwrap();
+
+        let ignored_dir = temp_dir.path().join("target");
+        fs::create_dir(&ignored_dir).unwrap();
+        let file2 = ignored_dir.join("ignored.rs");
+        fs::write(&file2, "fn ignored() {}").unwrap();
+
+        let ignore_file = temp_dir.path().join(".ignore");
+        fs::write(&ignore_file, "target/\n").unwrap();
+
+        let files = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], file1);
+    }
+
+    #[test]
+    fn test_collect_rust_files_respects_gitignore_in_git_repo() {
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::create_dir(temp_dir.path().join(".git")).unwrap();
+
+        let file1 = temp_dir.path().join("included.rs");
+        fs::write(&file1, "fn main() {}").unwrap();
+
+        let ignored_dir = temp_dir.path().join("target");
+        fs::create_dir(&ignored_dir).unwrap();
+        let file2 = ignored_dir.join("ignored.rs");
+        fs::write(&file2, "fn ignored() {}").unwrap();
+
+        let gitignore = temp_dir.path().join(".gitignore");
+        fs::write(&gitignore, "target/\n").unwrap();
+
+        let files = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], file1);
     }
 }

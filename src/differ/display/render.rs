@@ -76,6 +76,8 @@ pub fn render_file_block(file: &FileDiff) -> RenderedFile {
 
     render_issues(&mut lines, &mut max_width, file);
 
+    render_empty_lines_note(&mut lines, max_width, file);
+
     render_footer(&mut lines, &mut max_width);
 
     RenderedFile {
@@ -147,6 +149,10 @@ fn render_issues(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDiff
     let mut last_analyzer = "";
 
     for entry in &file.entries {
+        if entry.analyzer == "empty_lines" {
+            continue;
+        }
+
         if entry.analyzer != last_analyzer {
             if !last_analyzer.is_empty() {
                 lines.push(String::new());
@@ -196,6 +202,58 @@ fn render_issue_entry(
     let new_line = format!("+    {}", entry.modified);
     *max_width = (*max_width).max(measure_text_width(&new_line));
     lines.push(new_line.green().to_string());
+
+    lines.push(String::new());
+}
+
+/// Renders empty lines removal note if present.
+///
+/// # Arguments
+///
+/// * `lines` - Output buffer
+/// * `max_width` - Maximum width from other content (not updated)
+/// * `file` - File diff data
+#[inline]
+fn render_empty_lines_note(lines: &mut Vec<String>, max_width: usize, file: &FileDiff) {
+    let empty_entries: Vec<_> = file
+        .entries
+        .iter()
+        .filter(|e| e.analyzer == "empty_lines")
+        .collect();
+
+    if empty_entries.is_empty() {
+        return;
+    }
+
+    let line_numbers: Vec<String> = empty_entries.iter().map(|e| e.line.to_string()).collect();
+
+    let prefix = format!(
+        "Note: {} empty {} will be removed from lines: ",
+        empty_entries.len(),
+        if empty_entries.len() == 1 {
+            "line"
+        } else {
+            "lines"
+        }
+    );
+
+    let mut current_line = prefix.clone();
+
+    for (i, num) in line_numbers.iter().enumerate() {
+        let separator = if i == 0 { "" } else { ", " };
+        let addition = format!("{}{}", separator, num);
+
+        if current_line.len() + addition.len() > max_width && i > 0 {
+            lines.push(current_line.dimmed().italic().to_string());
+            current_line = format!(" {}", num);
+        } else {
+            current_line.push_str(&addition);
+        }
+    }
+
+    if !current_line.is_empty() {
+        lines.push(current_line.dimmed().italic().to_string());
+    }
 
     lines.push(String::new());
 }

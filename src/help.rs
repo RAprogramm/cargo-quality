@@ -212,6 +212,24 @@ pub fn display_help() {
         "•".fg::<Blue>()
     );
 
+    println!(
+        "\n  {} {}",
+        "✓".fg::<Green>(),
+        "Empty Lines Analyzer".fg::<Cyan>().bold()
+    );
+    println!(
+        "    {} Detects empty lines inside function bodies",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Indicates untamed complexity (code smell)",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Shown as summary note in diff output",
+        "•".fg::<Blue>()
+    );
+
     println!("\n{}", "WORKFLOW".fg::<Yellow>().bold());
     println!(
         "{}",
