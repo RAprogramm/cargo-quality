@@ -12,7 +12,7 @@ Professional Rust code quality analysis tool with hardcoded standards.
 
 cargo-quality is a command-line tool that enforces consistent code quality standards across Rust projects without requiring local configuration files. All quality rules are hardcoded in the binary, ensuring uniform formatting and analysis across your entire codebase and organization.
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/99e2662c-a4ad-46e1-a1a7-161a00aef618" />
+<img width="1483" height="907" alt="image" src="https://github.com/user-attachments/assets/74a2449e-7231-468d-a660-28d2fedd1c5d" />
 
 
 ## Philosophy & Standards
