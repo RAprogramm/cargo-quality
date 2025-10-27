@@ -149,11 +149,13 @@ impl DiffFormatter {
     ///
     /// * `entry` - Diff entry to format
     fn format_vertical(&self, entry: &DiffEntry) {
+        if let Some(import) = &entry.import {
+            println!("{}", "Imports section (file top)".dimmed());
+            println!("{}", format!("+    {}", import).green());
+            println!();
+        }
         println!("{}", format!("Line {}", entry.line).cyan());
         println!("{}", format!("-    {}", entry.original).red());
-        if let Some(import) = &entry.import {
-            println!("{}", format!("+    {}", import).green());
-        }
         println!("{}", format!("+    {}", entry.modified).green());
         println!();
     }
@@ -164,15 +166,16 @@ impl DiffFormatter {
     ///
     /// * `entry` - Diff entry to format
     fn format_side_by_side(&self, entry: &DiffEntry) {
+        if let Some(import) = &entry.import {
+            println!("{}", "Imports section (file top)".dimmed());
+            println!("{}", format!("+    {}", import).green());
+            println!();
+        }
+
         println!("{}", format!("Line {}", entry.line).cyan());
 
         let left = self.truncate(entry.original.trim(), self.left_width);
-        let right_content = if let Some(import) = &entry.import {
-            format!("{}\n    {}", import, entry.modified)
-        } else {
-            entry.modified.clone()
-        };
-        let right = self.truncate(right_content.trim(), self.right_width);
+        let right = self.truncate(entry.modified.trim(), self.right_width);
 
         let left_padded = self.pad(&left, self.left_width);
 
