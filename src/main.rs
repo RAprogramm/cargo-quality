@@ -344,7 +344,7 @@ fn check_quality(path: &str, verbose: bool) -> AppResult<()> {
         let mut report = Report::new(file_path.display().to_string());
 
         for analyzer in &analyzers {
-            let result = analyzer.analyze(&ast)?;
+            let result = analyzer.analyze(&ast, &content)?;
             report.add_result(analyzer.name().to_string(), result);
         }
 

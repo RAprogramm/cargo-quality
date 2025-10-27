@@ -154,7 +154,7 @@ impl Analyzer for PathImportAnalyzer {
         "path_import"
     }
 
-    fn analyze(&self, ast: &File) -> AppResult<AnalysisResult> {
+    fn analyze(&self, ast: &File, _content: &str) -> AppResult<AnalysisResult> {
         let mut visitor = PathVisitor {
             issues: Vec::new()
         };
@@ -258,7 +258,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -271,7 +271,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -286,7 +286,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 3);
     }
 
@@ -302,7 +302,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -318,7 +318,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -333,7 +333,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -347,7 +347,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 2);
     }
 
@@ -363,7 +363,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 1);
     }
 
@@ -395,7 +395,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -408,7 +408,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -421,7 +421,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -434,7 +434,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -447,7 +447,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 0);
     }
 
@@ -461,7 +461,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
     }
 
@@ -475,7 +475,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.fixable_count, result.issues.len());
     }
 
@@ -488,7 +488,7 @@ mod tests {
             }
         };
 
-        let result = analyzer.analyze(&code).unwrap();
+        let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
         let issue = &result.issues[0];
         assert!(issue.message.contains("Use import instead of path"));

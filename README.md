@@ -287,6 +287,35 @@ Good:
 println!("Hello {name}, you are {age}");
 ```
 
+### Empty Lines Analyzer
+
+Detects empty lines inside function and method bodies that indicate untamed complexity. Based on principles from [Empty Line Code Smell](https://www.yegor256.com/2014/11/03/empty-line-code-smell.html).
+
+Bad:
+```rust
+fn process() {
+    let x = read();
+
+    let y = transform(x);
+
+    write(y);
+}
+```
+
+Good:
+```rust
+fn process() {
+    let x = read();
+    let y = transform(x);
+    write(y);
+}
+```
+
+When running `cargo quality diff`, empty lines are shown as a summary note:
+```
+Note: 3 empty lines will be removed from lines: 3, 5, 11
+```
+
 ## Workflow
 
 Typical development workflow:

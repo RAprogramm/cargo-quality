@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
+pub mod empty_lines;
 pub mod format_args;
 pub mod path_import;
 
+pub use empty_lines::EmptyLinesAnalyzer;
 pub use format_args::FormatArgsAnalyzer;
 pub use path_import::PathImportAnalyzer;
 
@@ -14,6 +16,7 @@ pub fn get_analyzers() -> Vec<Box<dyn Analyzer>> {
     vec![
         Box::new(PathImportAnalyzer::new()),
         Box::new(FormatArgsAnalyzer::new()),
+        Box::new(EmptyLinesAnalyzer::new()),
     ]
 }
 
@@ -24,7 +27,7 @@ mod tests {
     #[test]
     fn test_get_analyzers() {
         let analyzers = get_analyzers();
-        assert_eq!(analyzers.len(), 2);
+        assert_eq!(analyzers.len(), 3);
     }
 
     #[test]
@@ -34,5 +37,6 @@ mod tests {
 
         assert!(names.contains(&"path_import"));
         assert!(names.contains(&"format_args"));
+        assert!(names.contains(&"empty_lines"));
     }
 }
