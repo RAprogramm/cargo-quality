@@ -10,13 +10,13 @@ use clap::{Parser, Subcommand};
 
 /// Cargo subcommand for Rust code quality analysis.
 ///
-/// Top-level command that wraps the quality subcommand.
+/// Top-level command that wraps the qual subcommand.
 #[derive(Parser, Debug)]
 #[command(name = "cargo")]
 #[command(bin_name = "cargo")]
 pub enum CargoCli {
     /// Quality analysis subcommand
-    Quality(QualityArgs)
+    Qual(QualityArgs)
 }
 
 /// Quality analysis and fixes for Rust code.
@@ -47,7 +47,15 @@ pub enum Command {
 
         /// Show detailed output
         #[arg(short, long)]
-        verbose: bool
+        verbose: bool,
+
+        /// Run specific analyzer only (e.g., inline_comments, empty_lines)
+        #[arg(short, long)]
+        analyzer: Option<String>,
+
+        /// Enable colored output
+        #[arg(short, long)]
+        color: bool
     },
 
     /// Automatically fix quality issues
@@ -58,7 +66,11 @@ pub enum Command {
 
         /// Dry run - show changes without applying
         #[arg(short, long)]
-        dry_run: bool
+        dry_run: bool,
+
+        /// Run specific analyzer only (e.g., inline_comments, empty_lines)
+        #[arg(short, long)]
+        analyzer: Option<String>
     },
 
     /// Format code according to quality rules
@@ -87,7 +99,15 @@ pub enum Command {
 
         /// Interactive mode - select changes to apply
         #[arg(short, long)]
-        interactive: bool
+        interactive: bool,
+
+        /// Run specific analyzer only (e.g., inline_comments, empty_lines)
+        #[arg(short, long)]
+        analyzer: Option<String>,
+
+        /// Enable colored output
+        #[arg(short, long)]
+        color: bool
     },
 
     /// Display beautiful help with examples and usage
@@ -118,13 +138,13 @@ pub enum Shell {
 impl QualityArgs {
     /// Parse command-line arguments.
     ///
-    /// Extracts quality subcommand arguments from cargo invocation.
+    /// Extracts qual subcommand arguments from cargo invocation.
     ///
     /// # Returns
     ///
     /// Parsed `QualityArgs` with selected subcommand
     pub fn parse_args() -> Self {
-        let CargoCli::Quality(args) = CargoCli::parse();
+        let CargoCli::Qual(args) = CargoCli::parse();
         args
     }
 
@@ -143,7 +163,7 @@ impl QualityArgs {
         I: IntoIterator<Item = T>,
         T: Into<std::ffi::OsString> + Clone
     {
-        let CargoCli::Quality(args) = CargoCli::parse_from(iter);
+        let CargoCli::Qual(args) = CargoCli::parse_from(iter);
         args
     }
 }
@@ -154,15 +174,19 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_check() {
-        let args = CargoCli::parse_from(["cargo", "quality", "check", "src"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "check", "src"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Check {
                 path,
-                verbose
+                verbose,
+                analyzer,
+                color
             } => {
                 assert_eq!(path, "src");
                 assert!(!verbose);
+                assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Check command")
         }
@@ -170,15 +194,17 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_fix() {
-        let args = CargoCli::parse_from(["cargo", "quality", "fix", "--dry-run"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "fix", "--dry-run"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Fix {
                 path,
-                dry_run
+                dry_run,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(dry_run);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Fix command")
         }
@@ -186,8 +212,8 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_format() {
-        let args = CargoCli::parse_from(["cargo", "quality", "format"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "format"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Format {
                 path
@@ -200,15 +226,19 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_check_verbose() {
-        let args = CargoCli::parse_from(["cargo", "quality", "check", "--verbose"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "check", "--verbose"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Check {
                 path,
-                verbose
+                verbose,
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(verbose);
+                assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Check command")
         }
@@ -216,15 +246,17 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_fix_no_dry_run() {
-        let args = CargoCli::parse_from(["cargo", "quality", "fix"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "fix"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Fix {
                 path,
-                dry_run
+                dry_run,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(!dry_run);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Fix command")
         }
@@ -232,8 +264,8 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_format_with_path() {
-        let args = CargoCli::parse_from(["cargo", "quality", "format", "src/"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "format", "src/"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Format {
                 path
@@ -246,8 +278,8 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_fmt() {
-        let args = CargoCli::parse_from(["cargo", "quality", "fmt"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "fmt"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Fmt {
                 path
@@ -260,8 +292,8 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_fmt_with_path() {
-        let args = CargoCli::parse_from(["cargo", "quality", "fmt", "src/"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "fmt", "src/"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Fmt {
                 path
@@ -274,8 +306,8 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_help() {
-        let args = CargoCli::parse_from(["cargo", "quality", "help"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "help"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Help => {}
             _ => panic!("Expected Help command")
@@ -284,17 +316,21 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_diff() {
-        let args = CargoCli::parse_from(["cargo", "quality", "diff"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "diff"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(!summary);
                 assert!(!interactive);
+                assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
@@ -302,17 +338,21 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_diff_summary() {
-        let args = CargoCli::parse_from(["cargo", "quality", "diff", "--summary"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "diff", "--summary"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(summary);
                 assert!(!interactive);
+                assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
@@ -320,17 +360,21 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_diff_interactive() {
-        let args = CargoCli::parse_from(["cargo", "quality", "diff", "--interactive"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "diff", "--interactive"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(!summary);
                 assert!(interactive);
+                assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
@@ -338,17 +382,21 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_diff_with_path() {
-        let args = CargoCli::parse_from(["cargo", "quality", "diff", "src/"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "diff", "src/"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer,
+                color
             } => {
                 assert_eq!(path, "src/");
                 assert!(!summary);
                 assert!(!interactive);
+                assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
@@ -356,14 +404,18 @@ mod tests {
 
     #[test]
     fn test_quality_args_parse_from_iter() {
-        let args = QualityArgs::parse_from_iter(["cargo", "quality", "check", "--verbose"]);
+        let args = QualityArgs::parse_from_iter(["cargo", "qual", "check", "--verbose"]);
         match args.command {
             Command::Check {
                 path,
-                verbose
+                verbose,
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(verbose);
+                assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Check command")
         }
@@ -371,8 +423,8 @@ mod tests {
 
     #[test]
     fn test_cli_parsing_completions() {
-        let args = CargoCli::parse_from(["cargo", "quality", "completions", "fish"]);
-        let CargoCli::Quality(quality) = args;
+        let args = CargoCli::parse_from(["cargo", "qual", "completions", "fish"]);
+        let CargoCli::Qual(quality) = args;
         match quality.command {
             Command::Completions {
                 shell
@@ -381,6 +433,27 @@ mod tests {
                 _ => panic!("Expected Fish shell")
             },
             _ => panic!("Expected Completions command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_check_with_analyzer() {
+        let args =
+            CargoCli::parse_from(["cargo", "qual", "check", "--analyzer", "inline_comments"]);
+        let CargoCli::Qual(quality) = args;
+        match quality.command {
+            Command::Check {
+                path,
+                verbose,
+                analyzer,
+                color
+            } => {
+                assert_eq!(path, ".");
+                assert!(!verbose);
+                assert_eq!(analyzer, Some("inline_comments".to_string()));
+                assert!(!color);
+            }
+            _ => panic!("Expected Check command")
         }
     }
 }

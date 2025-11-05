@@ -6,9 +6,251 @@
 //! Provides structured output of quality issues found during analysis,
 //! grouping results by analyzer and file.
 
-use std::fmt;
+use std::{collections::HashMap, fmt};
+
+use console::measure_text_width;
+use owo_colors::OwoColorize;
+use terminal_size::{Width, terminal_size};
 
 use crate::analyzer::AnalysisResult;
+
+/// Minimum space between columns in grid layout.
+const COLUMN_GAP: usize = 4;
+
+/// Minimum width for an analyzer column.
+const MIN_ANALYZER_WIDTH: usize = 40;
+
+/// Maximum width for an analyzer column to enable multi-column layout.
+const MAX_ANALYZER_WIDTH: usize = 80;
+
+/// Rendered analyzer block for grid layout.
+struct RenderedAnalyzer {
+    lines: Vec<String>,
+    width: usize
+}
+
+/// Renders a single analyzer block with issues.
+fn render_analyzer_block(
+    analyzer_name: &str,
+    message_map: &HashMap<String, Vec<(String, Vec<usize>)>>,
+    color: bool
+) -> RenderedAnalyzer {
+    let mut content_lines = Vec::new();
+    let mut max_width = MIN_ANALYZER_WIDTH;
+
+    let total_issues: usize = message_map
+        .values()
+        .map(|files| files.iter().map(|(_, lines)| lines.len()).sum::<usize>())
+        .sum();
+
+    let header = if color {
+        format!(
+            "[{}] - {} issues",
+            analyzer_name.yellow().bold(),
+            total_issues.to_string().cyan()
+        )
+    } else {
+        format!("[{}] - {} issues", analyzer_name, total_issues)
+    };
+
+    max_width = max_width.max(measure_text_width(&header));
+    content_lines.push(header);
+
+    for (message, file_list) in message_map {
+        let msg_line = format!("  {}", message);
+        max_width = max_width.max(measure_text_width(&msg_line));
+        content_lines.push(msg_line);
+        content_lines.push(String::new());
+
+        for (file_path, mut file_lines) in file_list.iter().map(|(f, l)| (f, l.clone())) {
+            file_lines.sort_unstable();
+
+            let file_line = if color {
+                format!("  {} → Lines: ", file_path.blue())
+            } else {
+                format!("  {} → Lines: ", file_path)
+            };
+
+            let lines_str: Vec<String> = file_lines.iter().map(|l| l.to_string()).collect();
+            let joined = if color {
+                lines_str
+                    .iter()
+                    .map(|l| format!("{}", l.magenta()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                lines_str.join(", ")
+            };
+
+            if joined.len() > 60 {
+                let mut line_chunks = Vec::new();
+                let mut current_line = String::new();
+
+                for (i, line_num) in lines_str.iter().enumerate() {
+                    let separator = if i == 0 { "" } else { ", " };
+                    let addition = if color {
+                        format!("{}{}", separator, line_num.magenta())
+                    } else {
+                        format!("{}{}", separator, line_num)
+                    };
+
+                    let addition_len = separator.len() + line_num.len();
+
+                    if current_line.len() + addition_len > 60 && !current_line.is_empty() {
+                        line_chunks.push(current_line.clone());
+                        current_line = if color {
+                            format!("{}", line_num.magenta())
+                        } else {
+                            line_num.clone()
+                        };
+                    } else {
+                        current_line.push_str(&addition);
+                    }
+                }
+
+                if !current_line.is_empty() {
+                    line_chunks.push(current_line);
+                }
+
+                for (i, chunk) in line_chunks.iter().enumerate() {
+                    let full_line = if i == 0 {
+                        format!("{}{}", file_line, chunk)
+                    } else {
+                        format!("  {} {}", " ".repeat(file_path.len() + 9), chunk)
+                    };
+                    max_width = max_width.max(measure_text_width(&full_line));
+                    content_lines.push(full_line);
+                }
+            } else {
+                let full_line = format!("{}{}", file_line, joined);
+                max_width = max_width.max(measure_text_width(&full_line));
+                content_lines.push(full_line);
+            }
+        }
+
+        content_lines.push(String::new());
+    }
+
+    let final_width = max_width.clamp(MIN_ANALYZER_WIDTH, MAX_ANALYZER_WIDTH);
+    let separator = "─".repeat(final_width);
+    let footer = "═".repeat(final_width);
+
+    let mut lines = Vec::with_capacity(content_lines.len() + 2);
+    lines.push(content_lines[0].clone());
+    lines.push(if color {
+        separator.dimmed().to_string()
+    } else {
+        separator
+    });
+
+    for line in &content_lines[1..] {
+        let line_width = measure_text_width(line);
+        if line_width > final_width {
+            let mut truncated = line.clone();
+            while measure_text_width(&truncated) > final_width - 3 {
+                truncated.pop();
+            }
+            truncated.push_str("...");
+            lines.push(truncated);
+        } else {
+            lines.push(line.clone());
+        }
+    }
+
+    lines.push(if color {
+        footer.dimmed().to_string()
+    } else {
+        footer
+    });
+
+    RenderedAnalyzer {
+        lines,
+        width: final_width
+    }
+}
+
+/// Calculate optimal number of columns for grid layout.
+fn calculate_columns(analyzers: &[RenderedAnalyzer], term_width: usize) -> usize {
+    if analyzers.is_empty() {
+        return 1;
+    }
+
+    let max_analyzer_width = analyzers
+        .iter()
+        .map(|a| a.width)
+        .max()
+        .unwrap_or(MIN_ANALYZER_WIDTH)
+        .max(MIN_ANALYZER_WIDTH);
+
+    for cols in (1..=analyzers.len()).rev() {
+        let total_width = cols * max_analyzer_width + (cols.saturating_sub(1)) * COLUMN_GAP;
+
+        if total_width <= term_width {
+            return cols;
+        }
+    }
+
+    1
+}
+
+/// Renders analyzers in grid layout.
+fn render_grid(analyzers: &[RenderedAnalyzer], columns: usize) -> String {
+    let mut output = String::new();
+
+    if analyzers.is_empty() {
+        return output;
+    }
+
+    if columns == 1 {
+        for analyzer in analyzers {
+            for line in &analyzer.lines {
+                output.push_str(line);
+                output.push('\n');
+            }
+            output.push('\n');
+        }
+        return output;
+    }
+
+    let col_width = analyzers
+        .iter()
+        .map(|a| a.width)
+        .max()
+        .unwrap_or(MIN_ANALYZER_WIDTH);
+
+    for chunk in analyzers.chunks(columns) {
+        let max_lines = chunk.iter().map(|a| a.lines.len()).max().unwrap_or(0);
+
+        for row_idx in 0..max_lines {
+            let mut row_output = String::with_capacity(columns * (col_width + COLUMN_GAP));
+
+            for (col_idx, analyzer) in chunk.iter().enumerate() {
+                let line = analyzer
+                    .lines
+                    .get(row_idx)
+                    .map(String::as_str)
+                    .unwrap_or("");
+
+                let visual_width = measure_text_width(line);
+                let padding = col_width.saturating_sub(visual_width);
+
+                row_output.push_str(line);
+                row_output.push_str(&" ".repeat(padding));
+
+                if col_idx < chunk.len() - 1 {
+                    row_output.push_str(&" ".repeat(COLUMN_GAP));
+                }
+            }
+
+            output.push_str(&row_output);
+            output.push('\n');
+        }
+
+        output.push('\n');
+    }
+
+    output
+}
 
 /// Report formatter for analysis results.
 ///
@@ -96,6 +338,198 @@ impl fmt::Display for Report {
         writeln!(f, "Fixable: {}", self.total_fixable())?;
 
         Ok(())
+    }
+}
+
+/// Global report aggregator across multiple files.
+///
+/// Collects reports from multiple files and provides globally grouped output.
+pub struct GlobalReport {
+    /// Collection of per-file reports
+    pub reports: Vec<Report>
+}
+
+impl GlobalReport {
+    /// Create new global report.
+    pub fn new() -> Self {
+        Self {
+            reports: Vec::new()
+        }
+    }
+
+    /// Add a file report to the global collection.
+    pub fn add_report(&mut self, report: Report) {
+        self.reports.push(report);
+    }
+
+    /// Calculate total issues across all files.
+    pub fn total_issues(&self) -> usize {
+        self.reports.iter().map(|r| r.total_issues()).sum()
+    }
+
+    /// Calculate total fixable issues across all files.
+    pub fn total_fixable(&self) -> usize {
+        self.reports.iter().map(|r| r.total_fixable()).sum()
+    }
+
+    /// Display summary only (total issues and fixable count).
+    pub fn display_compact(&self, color: bool) -> String {
+        let mut output = String::new();
+
+        if color {
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Total issues".green().bold(),
+                self.total_issues().to_string().green().bold()
+            ));
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Fixable".green().bold(),
+                self.total_fixable().to_string().green().bold()
+            ));
+        } else {
+            output.push_str(&format!("Total issues: {}\n", self.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        }
+
+        output
+    }
+
+    /// Display details for a specific analyzer only.
+    pub fn display_analyzer(&self, analyzer_name: &str, color: bool) -> String {
+        type FileLines = Vec<(String, Vec<usize>)>;
+        type MessageGroups = HashMap<String, FileLines>;
+
+        let mut message_map: MessageGroups = HashMap::new();
+
+        for report in &self.reports {
+            for (name, result) in &report.results {
+                if name != analyzer_name || result.issues.is_empty() {
+                    continue;
+                }
+
+                for issue in &result.issues {
+                    let file_list = message_map.entry(issue.message.clone()).or_default();
+
+                    if let Some((_, lines)) =
+                        file_list.iter_mut().find(|(f, _)| f == &report.file_path)
+                    {
+                        lines.push(issue.line);
+                    } else {
+                        file_list.push((report.file_path.clone(), vec![issue.line]));
+                    }
+                }
+            }
+        }
+
+        if message_map.is_empty() {
+            return String::new();
+        }
+
+        let rendered = render_analyzer_block(analyzer_name, &message_map, color);
+        let mut output = String::new();
+
+        for line in &rendered.lines {
+            output.push_str(line);
+            output.push('\n');
+        }
+
+        output.push('\n');
+
+        if color {
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Total issues".green().bold(),
+                self.total_issues().to_string().green().bold()
+            ));
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Fixable".green().bold(),
+                self.total_fixable().to_string().green().bold()
+            ));
+        } else {
+            output.push_str(&format!("Total issues: {}\n", self.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        }
+
+        output
+    }
+
+    /// Display detailed report with grid layout (verbose mode).
+    ///
+    /// Groups issues by analyzer and message across all files,
+    /// then shows which files have each issue in grid layout.
+    pub fn display_verbose(&self, color: bool) -> String {
+        type FileLines = Vec<(String, Vec<usize>)>;
+        type MessageGroups = HashMap<String, FileLines>;
+        type AnalyzerGroups = HashMap<String, MessageGroups>;
+
+        let mut analyzer_groups: AnalyzerGroups = HashMap::new();
+
+        for report in &self.reports {
+            for (analyzer_name, result) in &report.results {
+                if result.issues.is_empty() {
+                    continue;
+                }
+
+                let message_map = analyzer_groups.entry(analyzer_name.clone()).or_default();
+
+                for issue in &result.issues {
+                    let file_list = message_map.entry(issue.message.clone()).or_default();
+
+                    if let Some((_, lines)) =
+                        file_list.iter_mut().find(|(f, _)| f == &report.file_path)
+                    {
+                        lines.push(issue.line);
+                    } else {
+                        file_list.push((report.file_path.clone(), vec![issue.line]));
+                    }
+                }
+            }
+        }
+
+        let mut analyzer_names: Vec<_> = analyzer_groups.keys().cloned().collect();
+        analyzer_names.sort();
+
+        let rendered_analyzers: Vec<RenderedAnalyzer> = analyzer_names
+            .iter()
+            .map(|name| {
+                let message_map = &analyzer_groups[name];
+                render_analyzer_block(name, message_map, color)
+            })
+            .collect();
+
+        let term_width = terminal_size()
+            .map(|(Width(w), _)| w as usize)
+            .unwrap_or(170);
+
+        let columns = calculate_columns(&rendered_analyzers, term_width);
+
+        let mut output = render_grid(&rendered_analyzers, columns);
+
+        if color {
+            output.push_str(&format!(
+                "\n{}: {}\n",
+                "Total issues".green().bold(),
+                self.total_issues().to_string().green().bold()
+            ));
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Fixable".green().bold(),
+                self.total_fixable().to_string().green().bold()
+            ));
+        } else {
+            output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        }
+
+        output
+    }
+}
+
+impl Default for GlobalReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

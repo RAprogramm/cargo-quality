@@ -59,26 +59,26 @@ const ESTIMATED_LINES_PER_FILE: usize = 20;
 /// use cargo_quality::differ::{display::render::render_file_block, types::FileDiff};
 ///
 /// let file_diff = FileDiff::new("test.rs".to_string());
-/// let rendered = render_file_block(&file_diff);
+/// let rendered = render_file_block(&file_diff, false);
 ///
 /// assert!(!rendered.lines.is_empty());
 /// assert!(rendered.width >= 40);
 /// ```
-pub fn render_file_block(file: &FileDiff) -> RenderedFile {
+pub fn render_file_block(file: &FileDiff, color: bool) -> RenderedFile {
     let estimated_capacity = ESTIMATED_LINES_PER_FILE + file.entries.len() * 5;
 
     let mut lines = Vec::with_capacity(estimated_capacity);
     let mut max_width = 0;
 
-    render_header(&mut lines, &mut max_width, &file.path);
+    render_header(&mut lines, &mut max_width, &file.path, color);
 
-    render_imports(&mut lines, &mut max_width, file);
+    render_imports(&mut lines, &mut max_width, file, color);
 
-    render_issues(&mut lines, &mut max_width, file);
+    render_issues(&mut lines, &mut max_width, file, color);
 
-    render_empty_lines_note(&mut lines, max_width, file);
+    render_empty_lines_note(&mut lines, max_width, file, color);
 
-    render_footer(&mut lines, &mut max_width);
+    render_footer(&mut lines, &mut max_width, color);
 
     RenderedFile {
         lines,
@@ -94,14 +94,24 @@ pub fn render_file_block(file: &FileDiff) -> RenderedFile {
 /// * `max_width` - Running maximum width tracker
 /// * `path` - File path string
 #[inline]
-fn render_header(lines: &mut Vec<String>, max_width: &mut usize, path: &str) {
+fn render_header(lines: &mut Vec<String>, max_width: &mut usize, path: &str, color: bool) {
     let header = format!("File: {}", path);
     *max_width = (*max_width).max(measure_text_width(&header));
-    lines.push(header.cyan().bold().to_string());
+
+    if color {
+        lines.push(header.cyan().bold().to_string());
+    } else {
+        lines.push(header);
+    }
 
     let separator = "─".repeat(40);
     *max_width = (*max_width).max(measure_text_width(&separator));
-    lines.push(separator.dimmed().to_string());
+
+    if color {
+        lines.push(separator.dimmed().to_string());
+    } else {
+        lines.push(separator);
+    }
 }
 
 /// Renders grouped import section if present.
@@ -112,7 +122,7 @@ fn render_header(lines: &mut Vec<String>, max_width: &mut usize, path: &str) {
 /// * `max_width` - Running maximum width tracker
 /// * `file` - File diff data
 #[inline]
-fn render_imports(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDiff) {
+fn render_imports(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDiff, color: bool) {
     let imports: Vec<&str> = file
         .entries
         .iter()
@@ -125,13 +135,23 @@ fn render_imports(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDif
 
     let import_header = "Imports (file top)";
     *max_width = (*max_width).max(measure_text_width(import_header));
-    lines.push(import_header.dimmed().to_string());
+
+    if color {
+        lines.push(import_header.dimmed().to_string());
+    } else {
+        lines.push(import_header.to_string());
+    }
 
     let grouped = group_imports(&imports);
     for import in grouped {
         let import_line = format!("+    {}", import);
         *max_width = (*max_width).max(measure_text_width(&import_line));
-        lines.push(import_line.green().to_string());
+
+        if color {
+            lines.push(import_line.green().to_string());
+        } else {
+            lines.push(import_line);
+        }
     }
 
     lines.push(String::new());
@@ -145,7 +165,7 @@ fn render_imports(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDif
 /// * `max_width` - Running maximum width tracker
 /// * `file` - File diff data
 #[inline]
-fn render_issues(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDiff) {
+fn render_issues(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDiff, color: bool) {
     let mut last_analyzer = "";
 
     for entry in &file.entries {
@@ -168,13 +188,19 @@ fn render_issues(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDiff
             );
 
             *max_width = (*max_width).max(measure_text_width(&analyzer_line));
-            lines.push(analyzer_line.green().bold().to_string());
+
+            if color {
+                lines.push(analyzer_line.green().bold().to_string());
+            } else {
+                lines.push(analyzer_line);
+            }
+
             lines.push(String::new());
 
             last_analyzer = &entry.analyzer;
         }
 
-        render_issue_entry(lines, max_width, entry);
+        render_issue_entry(lines, max_width, entry, color);
     }
 }
 
@@ -189,19 +215,35 @@ fn render_issues(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDiff
 fn render_issue_entry(
     lines: &mut Vec<String>,
     max_width: &mut usize,
-    entry: &crate::differ::types::DiffEntry
+    entry: &crate::differ::types::DiffEntry,
+    color: bool
 ) {
     let line_header = format!("Line {}", entry.line);
     *max_width = (*max_width).max(measure_text_width(&line_header));
-    lines.push(line_header.cyan().to_string());
+
+    if color {
+        lines.push(line_header.cyan().to_string());
+    } else {
+        lines.push(line_header);
+    }
 
     let old_line = format!("-    {}", entry.original);
     *max_width = (*max_width).max(measure_text_width(&old_line));
-    lines.push(old_line.red().to_string());
+
+    if color {
+        lines.push(old_line.red().to_string());
+    } else {
+        lines.push(old_line);
+    }
 
     let new_line = format!("+    {}", entry.modified);
     *max_width = (*max_width).max(measure_text_width(&new_line));
-    lines.push(new_line.green().to_string());
+
+    if color {
+        lines.push(new_line.green().to_string());
+    } else {
+        lines.push(new_line);
+    }
 
     lines.push(String::new());
 }
@@ -214,7 +256,12 @@ fn render_issue_entry(
 /// * `max_width` - Maximum width from other content (not updated)
 /// * `file` - File diff data
 #[inline]
-fn render_empty_lines_note(lines: &mut Vec<String>, max_width: usize, file: &FileDiff) {
+fn render_empty_lines_note(
+    lines: &mut Vec<String>,
+    max_width: usize,
+    file: &FileDiff,
+    color: bool
+) {
     let empty_entries: Vec<_> = file
         .entries
         .iter()
@@ -244,7 +291,11 @@ fn render_empty_lines_note(lines: &mut Vec<String>, max_width: usize, file: &Fil
         let addition = format!("{}{}", separator, num);
 
         if current_line.len() + addition.len() > max_width && i > 0 {
-            lines.push(current_line.dimmed().italic().to_string());
+            if color {
+                lines.push(current_line.dimmed().italic().to_string());
+            } else {
+                lines.push(current_line);
+            }
             current_line = format!(" {}", num);
         } else {
             current_line.push_str(&addition);
@@ -252,7 +303,11 @@ fn render_empty_lines_note(lines: &mut Vec<String>, max_width: usize, file: &Fil
     }
 
     if !current_line.is_empty() {
-        lines.push(current_line.dimmed().italic().to_string());
+        if color {
+            lines.push(current_line.dimmed().italic().to_string());
+        } else {
+            lines.push(current_line);
+        }
     }
 
     lines.push(String::new());
@@ -265,10 +320,15 @@ fn render_empty_lines_note(lines: &mut Vec<String>, max_width: usize, file: &Fil
 /// * `lines` - Output buffer
 /// * `max_width` - Running maximum width tracker
 #[inline]
-fn render_footer(lines: &mut Vec<String>, max_width: &mut usize) {
+fn render_footer(lines: &mut Vec<String>, max_width: &mut usize, color: bool) {
     let end_separator = "═".repeat(40);
     *max_width = (*max_width).max(measure_text_width(&end_separator));
-    lines.push(end_separator.dimmed().to_string());
+
+    if color {
+        lines.push(end_separator.dimmed().to_string());
+    } else {
+        lines.push(end_separator);
+    }
 }
 
 #[cfg(test)]
@@ -279,7 +339,7 @@ mod tests {
     #[test]
     fn test_render_file_block_empty() {
         let file = FileDiff::new("test.rs".to_string());
-        let rendered = render_file_block(&file);
+        let rendered = render_file_block(&file, false);
 
         assert!(!rendered.lines.is_empty());
         assert!(rendered.width >= MIN_FILE_WIDTH);
@@ -297,7 +357,7 @@ mod tests {
             import:      None
         });
 
-        let rendered = render_file_block(&file);
+        let rendered = render_file_block(&file, false);
         assert!(rendered.line_count() > 5);
     }
 
@@ -313,7 +373,7 @@ mod tests {
             import:      Some("use std::fs::read;".to_string())
         });
 
-        let rendered = render_file_block(&file);
+        let rendered = render_file_block(&file, false);
         assert!(rendered.lines.iter().any(|l| l.contains("Imports")));
     }
 
@@ -339,7 +399,7 @@ mod tests {
             import:      None
         });
 
-        let rendered = render_file_block(&file);
+        let rendered = render_file_block(&file, false);
         assert!(rendered.lines.iter().any(|l| l.contains("analyzer1")));
         assert!(rendered.lines.iter().any(|l| l.contains("analyzer2")));
     }
@@ -347,7 +407,7 @@ mod tests {
     #[test]
     fn test_render_respects_capacity() {
         let file = FileDiff::new("test.rs".to_string());
-        let rendered = render_file_block(&file);
+        let rendered = render_file_block(&file, false);
 
         assert!(rendered.lines.capacity() >= ESTIMATED_LINES_PER_FILE);
     }

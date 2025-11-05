@@ -43,12 +43,20 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--verbose, -v".fg::<Magenta>()
+        "--verbose, -v | --analyzer, -a <NAME> | --color, -c".fg::<Magenta>()
     );
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality check src/".fg::<Cyan>().italic()
+        "cargo qual check src/".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo qual check -a inline_comments".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo qual check --color src/".fg::<Cyan>().italic()
     );
 
     println!(
@@ -60,12 +68,16 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--dry-run, -d".fg::<Magenta>()
+        "--dry-run, -d | --analyzer, -a <NAME>".fg::<Magenta>()
     );
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality fix --dry-run".fg::<Cyan>().italic()
+        "cargo qual fix --dry-run".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo qual fix -a path_import".fg::<Cyan>().italic()
     );
 
     println!(
@@ -80,7 +92,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality format .".fg::<Cyan>().italic()
+        "cargo qual format .".fg::<Cyan>().italic()
     );
 
     println!(
@@ -103,7 +115,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality fmt".fg::<Cyan>().italic()
+        "cargo qual fmt".fg::<Cyan>().italic()
     );
 
     println!(
@@ -118,7 +130,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--summary, -s | --interactive, -i".fg::<Magenta>()
+        "--summary, -s | --interactive, -i | --analyzer, -a <NAME> | --color, -c".fg::<Magenta>()
     );
     println!(
         "    {} {}",
@@ -128,7 +140,15 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality diff --summary".fg::<Cyan>().italic()
+        "cargo qual diff --summary".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo qual diff -a path_import".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo qual diff --color --summary".fg::<Cyan>().italic()
     );
 
     println!("\n  {}", "help".fg::<Green>().bold());
@@ -139,7 +159,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality help".fg::<Cyan>().italic()
+        "cargo qual help".fg::<Cyan>().italic()
     );
 
     println!("\n  {}", "setup".fg::<Green>().bold());
@@ -155,7 +175,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality setup".fg::<Cyan>().italic()
+        "cargo qual setup".fg::<Cyan>().italic()
     );
 
     println!("\n  {}", "completions".fg::<Green>().bold());
@@ -171,7 +191,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
-        "cargo quality completions fish > ~/.config/fish/completions/cargo.fish"
+        "cargo qual completions fish > ~/.config/fish/completions/cargo.fish"
             .fg::<Cyan>()
             .italic()
     );
@@ -230,6 +250,28 @@ pub fn display_help() {
         "•".fg::<Blue>()
     );
 
+    println!(
+        "\n  {} {}",
+        "✓".fg::<Green>(),
+        "Inline Comments Analyzer".fg::<Cyan>().bold()
+    );
+    println!(
+        "    {} Detects inline comments (//) inside function bodies",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Suggests moving to doc block # Notes section with code",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Format: /// - Comment text - `code`",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Use: cargo qual check -a inline_comments",
+        "•".fg::<Blue>()
+    );
+
     println!("\n{}", "WORKFLOW".fg::<Yellow>().bold());
     println!(
         "{}",
@@ -243,31 +285,28 @@ pub fn display_help() {
         "1.".fg::<Magenta>().bold(),
         "Check your code".fg::<Green>()
     );
-    println!("     {}", "cargo quality check src/".fg::<Cyan>().italic());
+    println!("     {}", "cargo qual check src/".fg::<Cyan>().italic());
 
     println!(
         "\n  {} {}",
         "2.".fg::<Magenta>().bold(),
         "Preview fixes".fg::<Green>()
     );
-    println!(
-        "     {}",
-        "cargo quality fix --dry-run".fg::<Cyan>().italic()
-    );
+    println!("     {}", "cargo qual fix --dry-run".fg::<Cyan>().italic());
 
     println!(
         "\n  {} {}",
         "3.".fg::<Magenta>().bold(),
         "Apply fixes".fg::<Green>()
     );
-    println!("     {}", "cargo quality fix".fg::<Cyan>().italic());
+    println!("     {}", "cargo qual fix".fg::<Cyan>().italic());
 
     println!(
         "\n  {} {}",
         "4.".fg::<Magenta>().bold(),
         "Format code".fg::<Green>()
     );
-    println!("     {}", "cargo quality fmt".fg::<Cyan>().italic());
+    println!("     {}", "cargo qual fmt".fg::<Cyan>().italic());
 
     println!("\n{}", "PROJECT INFO".fg::<Yellow>().bold());
     println!(
