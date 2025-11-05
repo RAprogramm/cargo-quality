@@ -130,8 +130,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--summary, -s | --interactive, -i | --analyzer, -a <NAME> | --color, -c"
-            .fg::<Magenta>()
+        "--summary, -s | --interactive, -i | --analyzer, -a <NAME> | --color, -c".fg::<Magenta>()
     );
     println!(
         "    {} {}",
