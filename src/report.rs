@@ -6,11 +6,232 @@
 //! Provides structured output of quality issues found during analysis,
 //! grouping results by analyzer and file.
 
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
+use console::measure_text_width;
 use owo_colors::OwoColorize;
+use terminal_size::{Width, terminal_size};
 
 use crate::analyzer::AnalysisResult;
+
+/// Minimum space between columns in grid layout.
+const COLUMN_GAP: usize = 4;
+
+/// Minimum width for an analyzer column.
+const MIN_ANALYZER_WIDTH: usize = 40;
+
+/// Rendered analyzer block for grid layout.
+struct RenderedAnalyzer {
+    lines: Vec<String>,
+    width: usize
+}
+
+/// Renders a single analyzer block with issues.
+fn render_analyzer_block(
+    analyzer_name: &str,
+    message_map: &HashMap<String, Vec<(String, Vec<usize>)>>,
+    color: bool
+) -> RenderedAnalyzer {
+    let mut lines = Vec::new();
+    let mut max_width = 0;
+
+    let total_issues: usize = message_map
+        .values()
+        .map(|files| files.iter().map(|(_, lines)| lines.len()).sum::<usize>())
+        .sum();
+
+    let header = if color {
+        format!(
+            "[{}] - {} issues",
+            analyzer_name.yellow().bold(),
+            total_issues.to_string().cyan()
+        )
+    } else {
+        format!("[{}] - {} issues", analyzer_name, total_issues)
+    };
+
+    max_width = max_width.max(measure_text_width(&header));
+    lines.push(header);
+
+    let separator = "─".repeat(40);
+    max_width = max_width.max(measure_text_width(&separator));
+    lines.push(if color {
+        separator.dimmed().to_string()
+    } else {
+        separator
+    });
+
+    for (message, file_list) in message_map {
+        let msg_line = format!("  {}", message);
+        max_width = max_width.max(measure_text_width(&msg_line));
+        lines.push(msg_line);
+        lines.push(String::new());
+
+        for (file_path, mut file_lines) in file_list.iter().map(|(f, l)| (f, l.clone())) {
+            file_lines.sort_unstable();
+
+            let file_line = if color {
+                format!("  {} → Lines: ", file_path.blue())
+            } else {
+                format!("  {} → Lines: ", file_path)
+            };
+
+            let lines_str: Vec<String> = file_lines.iter().map(|l| l.to_string()).collect();
+            let joined = if color {
+                lines_str
+                    .iter()
+                    .map(|l| format!("{}", l.magenta()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                lines_str.join(", ")
+            };
+
+            if joined.len() > 60 {
+                let mut line_chunks = Vec::new();
+                let mut current_line = String::new();
+
+                for (i, line_num) in lines_str.iter().enumerate() {
+                    let separator = if i == 0 { "" } else { ", " };
+                    let addition = if color {
+                        format!("{}{}", separator, line_num.magenta())
+                    } else {
+                        format!("{}{}", separator, line_num)
+                    };
+
+                    let addition_len = separator.len() + line_num.len();
+
+                    if current_line.len() + addition_len > 60 && !current_line.is_empty() {
+                        line_chunks.push(current_line.clone());
+                        current_line = if color {
+                            format!("{}", line_num.magenta())
+                        } else {
+                            line_num.clone()
+                        };
+                    } else {
+                        current_line.push_str(&addition);
+                    }
+                }
+
+                if !current_line.is_empty() {
+                    line_chunks.push(current_line);
+                }
+
+                for (i, chunk) in line_chunks.iter().enumerate() {
+                    let full_line = if i == 0 {
+                        format!("{}{}", file_line, chunk)
+                    } else {
+                        format!("  {} {}", " ".repeat(file_path.len() + 9), chunk)
+                    };
+                    max_width = max_width.max(measure_text_width(&full_line));
+                    lines.push(full_line);
+                }
+            } else {
+                let full_line = format!("{}{}", file_line, joined);
+                max_width = max_width.max(measure_text_width(&full_line));
+                lines.push(full_line);
+            }
+        }
+
+        lines.push(String::new());
+    }
+
+    let footer = "═".repeat(40);
+    max_width = max_width.max(measure_text_width(&footer));
+    lines.push(if color {
+        footer.dimmed().to_string()
+    } else {
+        footer
+    });
+
+    RenderedAnalyzer {
+        lines,
+        width: max_width.max(MIN_ANALYZER_WIDTH)
+    }
+}
+
+/// Calculate optimal number of columns for grid layout.
+fn calculate_columns(analyzers: &[RenderedAnalyzer], term_width: usize) -> usize {
+    if analyzers.is_empty() {
+        return 1;
+    }
+
+    let max_analyzer_width = analyzers
+        .iter()
+        .map(|a| a.width)
+        .max()
+        .unwrap_or(MIN_ANALYZER_WIDTH)
+        .max(MIN_ANALYZER_WIDTH);
+
+    for cols in (1..=analyzers.len()).rev() {
+        let total_width = cols * max_analyzer_width + (cols.saturating_sub(1)) * COLUMN_GAP;
+
+        if total_width <= term_width {
+            return cols;
+        }
+    }
+
+    1
+}
+
+/// Renders analyzers in grid layout.
+fn render_grid(analyzers: &[RenderedAnalyzer], columns: usize) -> String {
+    let mut output = String::new();
+
+    if analyzers.is_empty() {
+        return output;
+    }
+
+    if columns == 1 {
+        for analyzer in analyzers {
+            for line in &analyzer.lines {
+                output.push_str(line);
+                output.push('\n');
+            }
+            output.push('\n');
+        }
+        return output;
+    }
+
+    let col_width = analyzers
+        .iter()
+        .map(|a| a.width)
+        .max()
+        .unwrap_or(MIN_ANALYZER_WIDTH);
+
+    for chunk in analyzers.chunks(columns) {
+        let max_lines = chunk.iter().map(|a| a.lines.len()).max().unwrap_or(0);
+
+        for row_idx in 0..max_lines {
+            let mut row_output = String::with_capacity(columns * (col_width + COLUMN_GAP));
+
+            for (col_idx, analyzer) in chunk.iter().enumerate() {
+                let line = analyzer
+                    .lines
+                    .get(row_idx)
+                    .map(String::as_str)
+                    .unwrap_or("");
+
+                let visual_width = measure_text_width(line);
+                let padding = col_width.saturating_sub(visual_width);
+
+                row_output.push_str(line);
+                row_output.push_str(&" ".repeat(padding));
+
+                if col_idx < chunk.len() - 1 {
+                    row_output.push_str(&" ".repeat(COLUMN_GAP));
+                }
+            }
+
+            output.push_str(&row_output);
+            output.push('\n');
+        }
+
+        output.push('\n');
+    }
+
+    output
+}
 
 /// Report formatter for analysis results.
 ///
@@ -135,15 +356,11 @@ impl GlobalReport {
     /// Display globally grouped report (compact mode).
     ///
     /// Groups issues by analyzer and message across all files,
-    /// then shows which files have each issue.
+    /// then shows which files have each issue in grid layout.
     pub fn display_compact(&self, color: bool) -> String {
-        use std::collections::HashMap;
-
         type FileLines = Vec<(String, Vec<usize>)>;
         type MessageGroups = HashMap<String, FileLines>;
         type AnalyzerGroups = HashMap<String, MessageGroups>;
-
-        let mut output = String::new();
 
         let mut analyzer_groups: AnalyzerGroups = HashMap::new();
 
@@ -169,102 +386,24 @@ impl GlobalReport {
             }
         }
 
-        let mut analyzer_names: Vec<_> = analyzer_groups.keys().collect();
+        let mut analyzer_names: Vec<_> = analyzer_groups.keys().cloned().collect();
         analyzer_names.sort();
 
-        for analyzer_name in analyzer_names {
-            let message_map = &analyzer_groups[analyzer_name];
-            let total_issues: usize = message_map
-                .values()
-                .map(|files| files.iter().map(|(_, lines)| lines.len()).sum::<usize>())
-                .sum();
+        let rendered_analyzers: Vec<RenderedAnalyzer> = analyzer_names
+            .iter()
+            .map(|name| {
+                let message_map = &analyzer_groups[name];
+                render_analyzer_block(name, message_map, color)
+            })
+            .collect();
 
-            if color {
-                output.push_str(&format!(
-                    "\n[{}] - {} issues\n",
-                    analyzer_name.yellow().bold(),
-                    total_issues.to_string().cyan()
-                ));
-            } else {
-                output.push_str(&format!(
-                    "\n[{}] - {} issues\n",
-                    analyzer_name, total_issues
-                ));
-            }
+        let term_width = terminal_size()
+            .map(|(Width(w), _)| w as usize)
+            .unwrap_or(120);
 
-            for (message, file_list) in message_map {
-                output.push_str(&format!("  {}\n", message));
+        let columns = calculate_columns(&rendered_analyzers, term_width);
 
-                for (file_path, mut lines) in file_list.iter().map(|(f, l)| (f, l.clone())) {
-                    lines.sort_unstable();
-
-                    if color {
-                        output.push_str(&format!("  {} → Lines: ", file_path.blue()));
-                    } else {
-                        output.push_str(&format!("  {} → Lines: ", file_path));
-                    }
-
-                    let lines_str: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-                    let joined = if color {
-                        lines_str
-                            .iter()
-                            .map(|l| format!("{}", l.magenta()))
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    } else {
-                        lines_str.join(", ")
-                    };
-
-                    if joined.len() > 70 {
-                        let mut line_chunks = Vec::new();
-                        let mut current_line = String::new();
-
-                        for (i, line_num) in lines_str.iter().enumerate() {
-                            let separator = if i == 0 { "" } else { ", " };
-                            let addition = if color {
-                                format!("{}{}", separator, line_num.magenta())
-                            } else {
-                                format!("{}{}", separator, line_num)
-                            };
-
-                            let addition_len = if color {
-                                separator.len() + line_num.len()
-                            } else {
-                                addition.len()
-                            };
-
-                            if current_line.len() + addition_len > 70 && !current_line.is_empty() {
-                                line_chunks.push(current_line.clone());
-                                current_line = if color {
-                                    format!("{}", line_num.magenta())
-                                } else {
-                                    line_num.clone()
-                                };
-                            } else {
-                                current_line.push_str(&addition);
-                            }
-                        }
-
-                        if !current_line.is_empty() {
-                            line_chunks.push(current_line);
-                        }
-
-                        for (i, chunk) in line_chunks.iter().enumerate() {
-                            if i == 0 {
-                                output.push_str(&format!("{}\n", chunk));
-                            } else {
-                                let indent = " ".repeat(file_path.len() + 11);
-                                output.push_str(&format!("{}{}\n", indent, chunk));
-                            }
-                        }
-                    } else {
-                        output.push_str(&format!("{}\n", joined));
-                    }
-                }
-
-                output.push('\n');
-            }
-        }
+        let mut output = render_grid(&rendered_analyzers, columns);
 
         if color {
             output.push_str(&format!(

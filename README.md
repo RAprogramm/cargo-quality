@@ -143,21 +143,35 @@ cargo quality help
 Analyze code quality without modifying files.
 
 ```bash
-cargo quality check [PATH] [--verbose] [--analyzer <NAME>]
+cargo quality check [PATH] [--verbose] [--analyzer <NAME>] [--color]
 ```
 
 Options:
 - `--verbose, -v` - Show detailed output for all files (every issue separately)
 - `--analyzer, -a <NAME>` - Run specific analyzer only
+- `--color, -c` - Enable colored output with syntax highlighting
 
 **Output Modes:**
 
-**Compact Mode (Default)** - Groups identical messages together:
+**Compact Mode (Default)** - Groups identical messages together with grid layout:
 ```
-[empty_lines] - 42 issues
-  Empty line in function body indicates untamed complexity
-  → Lines: 74, 78, 83, 91, 93, 98, 101, 105, 109, 117, 121, 132...
+[empty_lines] - 42 issues          [format_args] - 7 issues
+────────────────────────────       ────────────────────────────
+Empty line in function body...     Use named format arguments...
+
+src/report.rs → Lines:             src/report.rs → Lines: 167
+74, 78, 83, 91, 93, 98...         src/differ/display.rs → Lines:
+src/main.rs → Lines:               106, 116, 171, 183
+49, 88, 102, 105, 113...
+
+════════════════════════════       ════════════════════════════
 ```
+
+Features:
+- **Responsive grid layout** - Automatically arranges analyzers in columns based on terminal width
+- **Beautiful separators** - Clear visual boundaries between analyzer blocks
+- **Smart grouping** - Identical issues grouped across all files
+- **File-by-file breakdown** - Shows which files have each issue
 
 **Verbose Mode (--verbose flag)** - Shows every issue separately with full details:
 ```
@@ -168,6 +182,13 @@ Options:
     Fix:
   ...
 ```
+
+**Colored Output (--color flag)** - Syntax highlighting for better readability:
+- Analyzer names: yellow + bold
+- Issue counts: cyan
+- File paths: blue
+- Line numbers: magenta
+- Summary: green + bold
 
 **Selective Execution** - Run specific analyzers:
 ```bash
@@ -185,6 +206,9 @@ cargo quality check src/
 
 # Check with detailed output
 cargo quality check --verbose .
+
+# Check with colored output
+cargo quality check --color src/
 
 # Check only inline comments
 cargo quality check -a inline_comments
