@@ -51,8 +51,9 @@ fn main() -> AppResult<()> {
         Command::Check {
             path,
             verbose,
-            analyzer
-        } => check_quality(&path, verbose, analyzer.as_deref())?,
+            analyzer,
+            color
+        } => check_quality(&path, verbose, analyzer.as_deref(), color)?,
         Command::Fix {
             path,
             dry_run,
@@ -336,10 +337,15 @@ fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> A
 ///
 /// ```no_run
 /// use cargo_quality::check_quality;
-/// check_quality("src/", true, None).unwrap();
-/// check_quality("src/", false, Some("inline_comments")).unwrap();
+/// check_quality("src/", true, None, false).unwrap();
+/// check_quality("src/", false, Some("inline_comments"), true).unwrap();
 /// ```
-fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppResult<()> {
+fn check_quality(
+    path: &str,
+    verbose: bool,
+    analyzer_name: Option<&str>,
+    color: bool
+) -> AppResult<()> {
     let files = collect_rust_files(path)?;
     let all_analyzers = get_analyzers();
 
@@ -383,9 +389,9 @@ fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppR
 
     if global_report.total_issues() > 0 {
         if verbose {
-            print!("{}", global_report.display_verbose());
+            print!("{}", global_report.display_verbose(color));
         } else {
-            print!("{}", global_report.display_compact());
+            print!("{}", global_report.display_compact(color));
         }
     }
 
@@ -575,7 +581,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None, false);
         assert!(result.is_ok());
     }
 
@@ -585,7 +591,7 @@ mod tests {
         let file_path = temp_dir.path().join("clean.rs");
         fs::write(&file_path, "fn main() {}").unwrap();
 
-        let result = check_quality(temp_dir.path().to_str().unwrap(), true, None);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), true, None, false);
         assert!(result.is_ok());
     }
 
@@ -615,7 +621,7 @@ mod tests {
         let file_path = temp_dir.path().join("bad.rs");
         fs::write(&file_path, "fn main() { invalid rust syntax +++").unwrap();
 
-        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None, false);
         assert!(result.is_err());
     }
 
@@ -646,7 +652,7 @@ mod tests {
     #[test]
     fn test_check_quality_no_files() {
         let temp_dir = TempDir::new().unwrap();
-        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None, false);
         assert!(result.is_ok());
     }
 

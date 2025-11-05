@@ -43,7 +43,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--verbose, -v | --analyzer, -a <NAME>".fg::<Magenta>()
+        "--verbose, -v | --analyzer, -a <NAME> | --color, -c".fg::<Magenta>()
     );
     println!(
         "    {} {}",
@@ -55,6 +55,10 @@ pub fn display_help() {
         "cargo quality check -a inline_comments"
             .fg::<Cyan>()
             .italic()
+    );
+    println!(
+        "             {}",
+        "cargo quality check --color src/".fg::<Cyan>().italic()
     );
 
     println!(

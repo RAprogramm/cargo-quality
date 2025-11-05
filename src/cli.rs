@@ -51,7 +51,11 @@ pub enum Command {
 
         /// Run specific analyzer only (e.g., inline_comments, empty_lines)
         #[arg(short, long)]
-        analyzer: Option<String>
+        analyzer: Option<String>,
+
+        /// Enable colored output
+        #[arg(short, long)]
+        color: bool
     },
 
     /// Automatically fix quality issues
@@ -172,11 +176,13 @@ mod tests {
             Command::Check {
                 path,
                 verbose,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, "src");
                 assert!(!verbose);
                 assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Check command")
         }
@@ -222,11 +228,13 @@ mod tests {
             Command::Check {
                 path,
                 verbose,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(verbose);
                 assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Check command")
         }
@@ -389,11 +397,13 @@ mod tests {
             Command::Check {
                 path,
                 verbose,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(verbose);
                 assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Check command")
         }
@@ -423,11 +433,13 @@ mod tests {
             Command::Check {
                 path,
                 verbose,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(!verbose);
                 assert_eq!(analyzer, Some("inline_comments".to_string()));
+                assert!(!color);
             }
             _ => panic!("Expected Check command")
         }

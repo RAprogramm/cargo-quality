@@ -8,6 +8,8 @@
 
 use std::fmt;
 
+use owo_colors::OwoColorize;
+
 use crate::analyzer::AnalysisResult;
 
 /// Report formatter for analysis results.
@@ -134,7 +136,7 @@ impl GlobalReport {
     ///
     /// Groups issues by analyzer and message across all files,
     /// then shows which files have each issue.
-    pub fn display_compact(&self) -> String {
+    pub fn display_compact(&self, color: bool) -> String {
         use std::collections::HashMap;
 
         type FileLines = Vec<(String, Vec<usize>)>;
@@ -177,20 +179,41 @@ impl GlobalReport {
                 .map(|files| files.iter().map(|(_, lines)| lines.len()).sum::<usize>())
                 .sum();
 
-            output.push_str(&format!(
-                "\n[{}] - {} issues\n",
-                analyzer_name, total_issues
-            ));
+            if color {
+                output.push_str(&format!(
+                    "\n[{}] - {} issues\n",
+                    analyzer_name.yellow().bold(),
+                    total_issues.to_string().cyan()
+                ));
+            } else {
+                output.push_str(&format!(
+                    "\n[{}] - {} issues\n",
+                    analyzer_name, total_issues
+                ));
+            }
 
             for (message, file_list) in message_map {
                 output.push_str(&format!("  {}\n", message));
 
                 for (file_path, mut lines) in file_list.iter().map(|(f, l)| (f, l.clone())) {
                     lines.sort_unstable();
-                    output.push_str(&format!("  {} → Lines: ", file_path));
+
+                    if color {
+                        output.push_str(&format!("  {} → Lines: ", file_path.blue()));
+                    } else {
+                        output.push_str(&format!("  {} → Lines: ", file_path));
+                    }
 
                     let lines_str: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-                    let joined = lines_str.join(", ");
+                    let joined = if color {
+                        lines_str
+                            .iter()
+                            .map(|l| format!("{}", l.magenta()))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    } else {
+                        lines_str.join(", ")
+                    };
 
                     if joined.len() > 70 {
                         let mut line_chunks = Vec::new();
@@ -198,12 +221,25 @@ impl GlobalReport {
 
                         for (i, line_num) in lines_str.iter().enumerate() {
                             let separator = if i == 0 { "" } else { ", " };
-                            let addition = format!("{}{}", separator, line_num);
+                            let addition = if color {
+                                format!("{}{}", separator, line_num.magenta())
+                            } else {
+                                format!("{}{}", separator, line_num)
+                            };
 
-                            if current_line.len() + addition.len() > 70 && !current_line.is_empty()
-                            {
+                            let addition_len = if color {
+                                separator.len() + line_num.len()
+                            } else {
+                                addition.len()
+                            };
+
+                            if current_line.len() + addition_len > 70 && !current_line.is_empty() {
                                 line_chunks.push(current_line.clone());
-                                current_line = line_num.clone();
+                                current_line = if color {
+                                    format!("{}", line_num.magenta())
+                                } else {
+                                    line_num.clone()
+                                };
                             } else {
                                 current_line.push_str(&addition);
                             }
@@ -230,8 +266,21 @@ impl GlobalReport {
             }
         }
 
-        output.push_str(&format!("Total issues: {}\n", self.total_issues()));
-        output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        if color {
+            output.push_str(&format!(
+                "\n{}: {}\n",
+                "Total issues".green().bold(),
+                self.total_issues().to_string().green().bold()
+            ));
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Fixable".green().bold(),
+                self.total_fixable().to_string().green().bold()
+            ));
+        } else {
+            output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        }
 
         output
     }
@@ -239,13 +288,28 @@ impl GlobalReport {
     /// Display globally grouped report (verbose mode).
     ///
     /// Shows all reports in full detail, one file at a time.
-    pub fn display_verbose(&self) -> String {
+    pub fn display_verbose(&self, color: bool) -> String {
         let mut output = String::new();
         for report in &self.reports {
             output.push_str(&format!("{}", report));
         }
-        output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
-        output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+
+        if color {
+            output.push_str(&format!(
+                "\n{}: {}\n",
+                "Total issues".green().bold(),
+                self.total_issues().to_string().green().bold()
+            ));
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Fixable".green().bold(),
+                self.total_fixable().to_string().green().bold()
+            ));
+        } else {
+            output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        }
+
         output
     }
 }
