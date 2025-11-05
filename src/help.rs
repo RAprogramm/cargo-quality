@@ -130,7 +130,8 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--summary, -s | --interactive, -i | --analyzer, -a <NAME>".fg::<Magenta>()
+        "--summary, -s | --interactive, -i | --analyzer, -a <NAME> | --color, -c"
+            .fg::<Magenta>()
     );
     println!(
         "    {} {}",
@@ -145,6 +146,10 @@ pub fn display_help() {
     println!(
         "             {}",
         "cargo qual diff -a path_import".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo qual diff --color --summary".fg::<Cyan>().italic()
     );
 
     println!("\n  {}", "help".fg::<Green>().bold());

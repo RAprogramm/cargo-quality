@@ -284,13 +284,14 @@ cargo qual format .
 Visualize proposed changes before applying fixes.
 
 ```bash
-cargo qual diff [PATH] [--summary] [--interactive] [--analyzer <NAME>]
+cargo qual diff [PATH] [--summary] [--interactive] [--analyzer <NAME>] [--color]
 ```
 
 Options:
 - `--summary, -s` - Show brief summary of changes per file
 - `--interactive, -i` - Interactive mode to select which fixes to apply
 - `--analyzer, -a <NAME>` - Show diff for specific analyzer only
+- `--color, -c` - Enable colored output with syntax highlighting
 
 Display modes:
 - **Full** (default) - Shows complete diff with old/new code side-by-side
@@ -310,6 +311,9 @@ cargo qual diff --interactive
 
 # Show only path import changes
 cargo qual diff -a path_import
+
+# Colored output
+cargo qual diff --color --summary
 ```
 
 Output format:
