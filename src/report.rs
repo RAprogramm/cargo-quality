@@ -65,91 +65,6 @@ impl Report {
     pub fn total_fixable(&self) -> usize {
         self.results.iter().map(|(_, r)| r.fixable_count).sum()
     }
-
-    /// Display report in compact mode (grouped by message).
-    ///
-    /// Groups identical messages together and shows line numbers in a list.
-    pub fn display_compact(&self) -> String {
-        use std::collections::HashMap;
-
-        let mut output = String::new();
-        output.push_str(&format!("Quality report for: {}\n", self.file_path));
-        output.push_str("=\n");
-
-        for (analyzer_name, result) in &self.results {
-            if result.issues.is_empty() {
-                continue;
-            }
-
-            let mut grouped: HashMap<String, Vec<usize>> = HashMap::new();
-            for issue in &result.issues {
-                grouped
-                    .entry(issue.message.clone())
-                    .or_default()
-                    .push(issue.line);
-            }
-
-            output.push_str(&format!(
-                "\n[{}] - {} issues\n",
-                analyzer_name,
-                result.issues.len()
-            ));
-
-            for (message, mut lines) in grouped {
-                lines.sort_unstable();
-                output.push_str(&format!("  {}\n", message));
-                output.push_str("  → Lines: ");
-
-                let lines_str: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-                let joined = lines_str.join(", ");
-
-                if joined.len() > 70 {
-                    let mut line_chunks = Vec::new();
-                    let mut current_line = String::new();
-
-                    for (i, line_num) in lines_str.iter().enumerate() {
-                        let separator = if i == 0 { "" } else { ", " };
-                        let addition = format!("{}{}", separator, line_num);
-
-                        if current_line.len() + addition.len() > 70 && !current_line.is_empty() {
-                            line_chunks.push(current_line.clone());
-                            current_line = line_num.clone();
-                        } else {
-                            current_line.push_str(&addition);
-                        }
-                    }
-
-                    if !current_line.is_empty() {
-                        line_chunks.push(current_line);
-                    }
-
-                    for (i, chunk) in line_chunks.iter().enumerate() {
-                        if i == 0 {
-                            output.push_str(&format!("{}\n", chunk));
-                        } else {
-                            output.push_str(&format!("           {}\n", chunk));
-                        }
-                    }
-                } else {
-                    output.push_str(&format!("{}\n", joined));
-                }
-
-                output.push('\n');
-            }
-        }
-
-        output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
-        output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
-
-        output
-    }
-
-    /// Display report in verbose mode (detailed, every issue).
-    ///
-    /// Shows each issue separately with full details.
-    pub fn display_verbose(&self) -> String {
-        format!("{}", self)
-    }
 }
 
 impl fmt::Display for Report {
@@ -222,10 +137,13 @@ impl GlobalReport {
     pub fn display_compact(&self) -> String {
         use std::collections::HashMap;
 
+        type FileLines = Vec<(String, Vec<usize>)>;
+        type MessageGroups = HashMap<String, FileLines>;
+        type AnalyzerGroups = HashMap<String, MessageGroups>;
+
         let mut output = String::new();
 
-        let mut analyzer_groups: HashMap<String, HashMap<String, Vec<(String, Vec<usize>)>>> =
-            HashMap::new();
+        let mut analyzer_groups: AnalyzerGroups = HashMap::new();
 
         for report in &self.reports {
             for (analyzer_name, result) in &report.results {
