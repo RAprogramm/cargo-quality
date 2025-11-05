@@ -20,6 +20,9 @@ const COLUMN_GAP: usize = 4;
 /// Minimum width for an analyzer column.
 const MIN_ANALYZER_WIDTH: usize = 40;
 
+/// Maximum width for an analyzer column to enable multi-column layout.
+const MAX_ANALYZER_WIDTH: usize = 80;
+
 /// Rendered analyzer block for grid layout.
 struct RenderedAnalyzer {
     lines: Vec<String>,
@@ -32,8 +35,8 @@ fn render_analyzer_block(
     message_map: &HashMap<String, Vec<(String, Vec<usize>)>>,
     color: bool
 ) -> RenderedAnalyzer {
-    let mut lines = Vec::new();
-    let mut max_width = 0;
+    let mut content_lines = Vec::new();
+    let mut max_width = MIN_ANALYZER_WIDTH;
 
     let total_issues: usize = message_map
         .values()
@@ -51,21 +54,13 @@ fn render_analyzer_block(
     };
 
     max_width = max_width.max(measure_text_width(&header));
-    lines.push(header);
-
-    let separator = "─".repeat(40);
-    max_width = max_width.max(measure_text_width(&separator));
-    lines.push(if color {
-        separator.dimmed().to_string()
-    } else {
-        separator
-    });
+    content_lines.push(header);
 
     for (message, file_list) in message_map {
         let msg_line = format!("  {}", message);
         max_width = max_width.max(measure_text_width(&msg_line));
-        lines.push(msg_line);
-        lines.push(String::new());
+        content_lines.push(msg_line);
+        content_lines.push(String::new());
 
         for (file_path, mut file_lines) in file_list.iter().map(|(f, l)| (f, l.clone())) {
             file_lines.sort_unstable();
@@ -124,20 +119,44 @@ fn render_analyzer_block(
                         format!("  {} {}", " ".repeat(file_path.len() + 9), chunk)
                     };
                     max_width = max_width.max(measure_text_width(&full_line));
-                    lines.push(full_line);
+                    content_lines.push(full_line);
                 }
             } else {
                 let full_line = format!("{}{}", file_line, joined);
                 max_width = max_width.max(measure_text_width(&full_line));
-                lines.push(full_line);
+                content_lines.push(full_line);
             }
         }
 
-        lines.push(String::new());
+        content_lines.push(String::new());
     }
 
-    let footer = "═".repeat(40);
-    max_width = max_width.max(measure_text_width(&footer));
+    let final_width = max_width.min(MAX_ANALYZER_WIDTH).max(MIN_ANALYZER_WIDTH);
+    let separator = "─".repeat(final_width);
+    let footer = "═".repeat(final_width);
+
+    let mut lines = Vec::with_capacity(content_lines.len() + 2);
+    lines.push(content_lines[0].clone());
+    lines.push(if color {
+        separator.dimmed().to_string()
+    } else {
+        separator
+    });
+
+    for line in &content_lines[1..] {
+        let line_width = measure_text_width(line);
+        if line_width > final_width {
+            let mut truncated = line.clone();
+            while measure_text_width(&truncated) > final_width - 3 {
+                truncated.pop();
+            }
+            truncated.push_str("...");
+            lines.push(truncated);
+        } else {
+            lines.push(line.clone());
+        }
+    }
+
     lines.push(if color {
         footer.dimmed().to_string()
     } else {
@@ -146,7 +165,7 @@ fn render_analyzer_block(
 
     RenderedAnalyzer {
         lines,
-        width: max_width.max(MIN_ANALYZER_WIDTH)
+        width: final_width
     }
 }
 
@@ -399,7 +418,7 @@ impl GlobalReport {
 
         let term_width = terminal_size()
             .map(|(Width(w), _)| w as usize)
-            .unwrap_or(120);
+            .unwrap_or(170);
 
         let columns = calculate_columns(&rendered_analyzers, term_width);
 

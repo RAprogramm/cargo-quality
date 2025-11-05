@@ -9,16 +9,16 @@
 //!
 //! # Available Commands
 //!
-//! - `cargo quality check` - Analyze code without modifications
-//! - `cargo quality fix` - Apply automatic fixes
-//! - `cargo quality format` - Format code according to quality rules
+//! - `cargo qual check` - Analyze code without modifications
+//! - `cargo qual fix` - Apply automatic fixes
+//! - `cargo qual format` - Format code according to quality rules
 //!
 //! # Examples
 //!
 //! ```bash
-//! cargo quality check src/
-//! cargo quality fix --dry-run src/
-//! cargo quality format .
+//! cargo qual check src/
+//! cargo qual fix --dry-run src/
+//! cargo qual format .
 //! ```
 
 use std::{fs, path::PathBuf};
@@ -129,7 +129,7 @@ fn setup_completions() -> AppResult<()> {
         println!("❌ Unsupported shell: {}", shell_name);
         println!("Supported shells: bash, fish, zsh");
         println!("\nManual installation:");
-        println!("  cargo quality completions <shell> > <completion-file>");
+        println!("  cargo qual completions <shell> > <completion-file>");
         return Ok(());
     };
 
@@ -261,7 +261,7 @@ fn get_completion_config(shell_name: &str) -> Option<(Shell, PathBuf, &'static s
 ///
 /// `AppResult<()>` - Ok if installation succeeds
 fn install_fish_completions(comp_file: &std::path::Path) -> AppResult<()> {
-    let fish_completions = r#"# Completion for cargo quality subcommand
+    let fish_completions = r#"# Completion for cargo qual subcommand
 complete -c cargo -n "__fish_seen_subcommand_from quality" -s h -l help -d 'Print help'
 complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "check" -d 'Check code quality'
 complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fix" -d 'Fix quality issues'

@@ -74,7 +74,7 @@ Install from crates.io:
 cargo install cargo-quality
 
 # Setup shell completions (recommended)
-cargo quality setup
+cargo qual setup
 ```
 
 Install from source:
@@ -85,7 +85,7 @@ cd cargo-quality
 cargo install --path .
 
 # Setup shell completions (recommended)
-cargo quality setup
+cargo qual setup
 ```
 
 ### Shell Completions
@@ -94,12 +94,12 @@ After installation, set up tab completions:
 
 ```bash
 # Automatic setup (recommended - detects your shell)
-cargo quality setup
+cargo qual setup
 
 # Manual setup for specific shell
-cargo quality completions fish > ~/.config/fish/completions/cargo.fish
-cargo quality completions bash > ~/.local/share/bash-completion/completions/cargo-quality
-cargo quality completions zsh > ~/.local/share/zsh/site-functions/_cargo-quality
+cargo qual completions fish > ~/.config/fish/completions/cargo.fish
+cargo qual completions bash > ~/.local/share/bash-completion/completions/cargo-quality
+cargo qual completions zsh > ~/.local/share/zsh/site-functions/_cargo-quality
 ```
 
 **Note:** Completions will be available in new shell sessions. To use immediately, restart your shell or source the completion file.
@@ -115,25 +115,25 @@ cargo quality completions zsh > ~/.local/share/zsh/site-functions/_cargo-quality
 
 ```bash
 # Check code quality (compact output by default)
-cargo quality check src/
+cargo qual check src/
 
 # Check with detailed output
-cargo quality check --verbose src/
+cargo qual check --verbose src/
 
 # Check specific analyzer only
-cargo quality check -a inline_comments
+cargo qual check -a inline_comments
 
 # Preview fixes
-cargo quality fix --dry-run
+cargo qual fix --dry-run
 
 # Apply fixes from specific analyzer
-cargo quality fix -a path_import
+cargo qual fix -a path_import
 
 # Format with hardcoded standards
-cargo quality fmt
+cargo qual fmt
 
 # Display help
-cargo quality help
+cargo qual help
 ```
 
 ## Commands
@@ -143,7 +143,7 @@ cargo quality help
 Analyze code quality without modifying files.
 
 ```bash
-cargo quality check [PATH] [--verbose] [--analyzer <NAME>] [--color]
+cargo qual check [PATH] [--verbose] [--analyzer <NAME>] [--color]
 ```
 
 Options:
@@ -193,25 +193,25 @@ Features:
 **Selective Execution** - Run specific analyzers:
 ```bash
 # Run only inline comments analyzer
-cargo quality check -a inline_comments
+cargo qual check -a inline_comments
 
 # Run only path import analyzer
-cargo quality check -a path_import
+cargo qual check -a path_import
 ```
 
 Examples:
 ```bash
 # Check with compact output (default)
-cargo quality check src/
+cargo qual check src/
 
 # Check with detailed output
-cargo quality check --verbose .
+cargo qual check --verbose .
 
 # Check with colored output
-cargo quality check --color src/
+cargo qual check --color src/
 
 # Check only inline comments
-cargo quality check -a inline_comments
+cargo qual check -a inline_comments
 ```
 
 ### fix
@@ -219,7 +219,7 @@ cargo quality check -a inline_comments
 Apply automatic quality fixes to your code.
 
 ```bash
-cargo quality fix [PATH] [--dry-run] [--analyzer <NAME>]
+cargo qual fix [PATH] [--dry-run] [--analyzer <NAME>]
 ```
 
 Options:
@@ -229,13 +229,13 @@ Options:
 Examples:
 ```bash
 # Preview all fixes
-cargo quality fix --dry-run
+cargo qual fix --dry-run
 
 # Apply all fixes
-cargo quality fix src/
+cargo qual fix src/
 
 # Apply only path import fixes
-cargo quality fix -a path_import
+cargo qual fix -a path_import
 ```
 
 ### fmt
@@ -243,7 +243,7 @@ cargo quality fix -a path_import
 Format code using cargo +nightly fmt with hardcoded project standards.
 
 ```bash
-cargo quality fmt [PATH]
+cargo qual fmt [PATH]
 ```
 
 This command uses the following hardcoded configuration:
@@ -262,8 +262,8 @@ The configuration is passed via command-line arguments and does not create or mo
 
 Examples:
 ```bash
-cargo quality fmt
-cargo quality fmt src/
+cargo qual fmt
+cargo qual fmt src/
 ```
 
 ### format
@@ -271,12 +271,12 @@ cargo quality fmt src/
 Format code according to quality analyzer rules.
 
 ```bash
-cargo quality format [PATH]
+cargo qual format [PATH]
 ```
 
 Examples:
 ```bash
-cargo quality format .
+cargo qual format .
 ```
 
 ### diff
@@ -284,7 +284,7 @@ cargo quality format .
 Visualize proposed changes before applying fixes.
 
 ```bash
-cargo quality diff [PATH] [--summary] [--interactive] [--analyzer <NAME>]
+cargo qual diff [PATH] [--summary] [--interactive] [--analyzer <NAME>]
 ```
 
 Options:
@@ -300,16 +300,16 @@ Display modes:
 Examples:
 ```bash
 # Full diff view
-cargo quality diff src/
+cargo qual diff src/
 
 # Summary view
-cargo quality diff --summary
+cargo qual diff --summary
 
 # Interactive mode
-cargo quality diff --interactive
+cargo qual diff --interactive
 
 # Show only path import changes
-cargo quality diff -a path_import
+cargo qual diff -a path_import
 ```
 
 Output format:
@@ -325,7 +325,7 @@ Line 529
 Display detailed help with examples and usage patterns.
 
 ```bash
-cargo quality help
+cargo qual help
 ```
 
 ## Analyzers
@@ -389,7 +389,7 @@ fn process() {
 }
 ```
 
-When running `cargo quality diff`, empty lines are shown as a summary note:
+When running `cargo qual diff`, empty lines are shown as a summary note:
 ```
 Note: 3 empty lines will be removed from lines: 3, 5, 11
 ```
@@ -426,9 +426,9 @@ fn calculate(x: i32, y: i32) -> i32 {
 }
 ```
 
-**Important:** This analyzer only detects issues and provides suggestions. It does not apply automatic fixes (`Fix::None`). Use `cargo quality check -a inline_comments` to see all inline comments that should be moved to doc blocks.
+**Important:** This analyzer only detects issues and provides suggestions. It does not apply automatic fixes (`Fix::None`). Use `cargo qual check -a inline_comments` to see all inline comments that should be moved to doc blocks.
 
-When running `cargo quality check -a inline_comments`, the output shows:
+When running `cargo qual check -a inline_comments`, the output shows:
 ```
 [inline_comments] - 3 issues
   Inline comment found: "Add the numbers"
@@ -454,13 +454,13 @@ Run specific analyzers using the `--analyzer` or `-a` flag:
 Example:
 ```bash
 # Check only inline comments
-cargo quality check -a inline_comments
+cargo qual check -a inline_comments
 
 # Fix only path imports
-cargo quality fix -a path_import
+cargo qual fix -a path_import
 
 # Show diff only for empty lines
-cargo quality diff -a empty_lines
+cargo qual diff -a empty_lines
 ```
 
 ## Workflow
@@ -469,22 +469,22 @@ Typical development workflow:
 
 1. Check your code:
 ```bash
-cargo quality check src/
+cargo qual check src/
 ```
 
 2. Preview fixes:
 ```bash
-cargo quality fix --dry-run
+cargo qual fix --dry-run
 ```
 
 3. Apply fixes:
 ```bash
-cargo quality fix
+cargo qual fix
 ```
 
 4. Format code:
 ```bash
-cargo quality fmt
+cargo qual fmt
 ```
 
 ## CI/CD Integration
@@ -508,10 +508,10 @@ jobs:
         run: cargo install cargo-quality
 
       - name: Check code quality
-        run: cargo quality check
+        run: cargo qual check
 
       - name: Format check
-        run: cargo quality fmt
+        run: cargo qual fmt
 ```
 
 ## Benefits

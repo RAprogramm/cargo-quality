@@ -42,7 +42,7 @@ name = "cargo_quality"
 path = "src/lib.rs"
 
 [[bin]]
-name = "cargo-quality"
+name = "cargo-qual"
 path = "src/main.rs"
 
 [[bench]]
