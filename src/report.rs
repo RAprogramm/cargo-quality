@@ -131,7 +131,7 @@ fn render_analyzer_block(
         content_lines.push(String::new());
     }
 
-    let final_width = max_width.min(MAX_ANALYZER_WIDTH).max(MIN_ANALYZER_WIDTH);
+    let final_width = max_width.clamp(MIN_ANALYZER_WIDTH, MAX_ANALYZER_WIDTH);
     let separator = "─".repeat(final_width);
     let footer = "═".repeat(final_width);
 
@@ -372,11 +372,94 @@ impl GlobalReport {
         self.reports.iter().map(|r| r.total_fixable()).sum()
     }
 
-    /// Display globally grouped report (compact mode).
+    /// Display summary only (total issues and fixable count).
+    pub fn display_compact(&self, color: bool) -> String {
+        let mut output = String::new();
+
+        if color {
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Total issues".green().bold(),
+                self.total_issues().to_string().green().bold()
+            ));
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Fixable".green().bold(),
+                self.total_fixable().to_string().green().bold()
+            ));
+        } else {
+            output.push_str(&format!("Total issues: {}\n", self.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        }
+
+        output
+    }
+
+    /// Display details for a specific analyzer only.
+    pub fn display_analyzer(&self, analyzer_name: &str, color: bool) -> String {
+        type FileLines = Vec<(String, Vec<usize>)>;
+        type MessageGroups = HashMap<String, FileLines>;
+
+        let mut message_map: MessageGroups = HashMap::new();
+
+        for report in &self.reports {
+            for (name, result) in &report.results {
+                if name != analyzer_name || result.issues.is_empty() {
+                    continue;
+                }
+
+                for issue in &result.issues {
+                    let file_list = message_map.entry(issue.message.clone()).or_default();
+
+                    if let Some((_, lines)) =
+                        file_list.iter_mut().find(|(f, _)| f == &report.file_path)
+                    {
+                        lines.push(issue.line);
+                    } else {
+                        file_list.push((report.file_path.clone(), vec![issue.line]));
+                    }
+                }
+            }
+        }
+
+        if message_map.is_empty() {
+            return String::new();
+        }
+
+        let rendered = render_analyzer_block(analyzer_name, &message_map, color);
+        let mut output = String::new();
+
+        for line in &rendered.lines {
+            output.push_str(line);
+            output.push('\n');
+        }
+
+        output.push('\n');
+
+        if color {
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Total issues".green().bold(),
+                self.total_issues().to_string().green().bold()
+            ));
+            output.push_str(&format!(
+                "{}: {}\n",
+                "Fixable".green().bold(),
+                self.total_fixable().to_string().green().bold()
+            ));
+        } else {
+            output.push_str(&format!("Total issues: {}\n", self.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        }
+
+        output
+    }
+
+    /// Display detailed report with grid layout (verbose mode).
     ///
     /// Groups issues by analyzer and message across all files,
     /// then shows which files have each issue in grid layout.
-    pub fn display_compact(&self, color: bool) -> String {
+    pub fn display_verbose(&self, color: bool) -> String {
         type FileLines = Vec<(String, Vec<usize>)>;
         type MessageGroups = HashMap<String, FileLines>;
         type AnalyzerGroups = HashMap<String, MessageGroups>;
@@ -423,34 +506,6 @@ impl GlobalReport {
         let columns = calculate_columns(&rendered_analyzers, term_width);
 
         let mut output = render_grid(&rendered_analyzers, columns);
-
-        if color {
-            output.push_str(&format!(
-                "\n{}: {}\n",
-                "Total issues".green().bold(),
-                self.total_issues().to_string().green().bold()
-            ));
-            output.push_str(&format!(
-                "{}: {}\n",
-                "Fixable".green().bold(),
-                self.total_fixable().to_string().green().bold()
-            ));
-        } else {
-            output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
-            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
-        }
-
-        output
-    }
-
-    /// Display globally grouped report (verbose mode).
-    ///
-    /// Shows all reports in full detail, one file at a time.
-    pub fn display_verbose(&self, color: bool) -> String {
-        let mut output = String::new();
-        for report in &self.reports {
-            output.push_str(&format!("{}", report));
-        }
 
         if color {
             output.push_str(&format!(

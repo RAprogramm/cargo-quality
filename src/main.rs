@@ -388,11 +388,15 @@ fn check_quality(
     }
 
     if global_report.total_issues() > 0 {
-        if verbose {
+        if let Some(analyzer) = analyzer_name {
+            print!("{}", global_report.display_analyzer(analyzer, color));
+        } else if verbose {
             print!("{}", global_report.display_verbose(color));
         } else {
             print!("{}", global_report.display_compact(color));
         }
+    } else {
+        print!("{}", global_report.display_compact(color));
     }
 
     Ok(())
