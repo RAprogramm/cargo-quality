@@ -60,6 +60,8 @@ cargo-quality implements these standards as enforceable rules, making RustManife
 - **Zero Configuration** - No .rustfmt.toml or config files needed
 - **Code Analysis** - Detect common code quality issues
 - **Automatic Fixes** - Apply fixes automatically with dry-run support
+- **Selective Execution** - Run specific analyzers with `--analyzer` flag
+- **Dual Output Modes** - Compact (grouped) and verbose (detailed) output
 - **Format Integration** - Use cargo +nightly fmt with project standards
 - **Beautiful CLI** - Colored output with helpful examples
 - **CI/CD Ready** - Perfect for automated workflows
@@ -112,14 +114,20 @@ cargo quality completions zsh > ~/.local/share/zsh/site-functions/_cargo-quality
 ### Quick Start
 
 ```bash
-# Check code quality
+# Check code quality (compact output by default)
 cargo quality check src/
+
+# Check with detailed output
+cargo quality check --verbose src/
+
+# Check specific analyzer only
+cargo quality check -a inline_comments
 
 # Preview fixes
 cargo quality fix --dry-run
 
-# Apply fixes
-cargo quality fix
+# Apply fixes from specific analyzer
+cargo quality fix -a path_import
 
 # Format with hardcoded standards
 cargo quality fmt
@@ -135,16 +143,51 @@ cargo quality help
 Analyze code quality without modifying files.
 
 ```bash
-cargo quality check [PATH] [--verbose]
+cargo quality check [PATH] [--verbose] [--analyzer <NAME>]
 ```
 
 Options:
-- `--verbose, -v` - Show detailed output for all files
+- `--verbose, -v` - Show detailed output for all files (every issue separately)
+- `--analyzer, -a <NAME>` - Run specific analyzer only
+
+**Output Modes:**
+
+**Compact Mode (Default)** - Groups identical messages together:
+```
+[empty_lines] - 42 issues
+  Empty line in function body indicates untamed complexity
+  → Lines: 74, 78, 83, 91, 93, 98, 101, 105, 109, 117, 121, 132...
+```
+
+**Verbose Mode (--verbose flag)** - Shows every issue separately with full details:
+```
+[empty_lines]
+  74:1 - Empty line in function body indicates untamed complexity
+    Fix:
+  78:1 - Empty line in function body indicates untamed complexity
+    Fix:
+  ...
+```
+
+**Selective Execution** - Run specific analyzers:
+```bash
+# Run only inline comments analyzer
+cargo quality check -a inline_comments
+
+# Run only path import analyzer
+cargo quality check -a path_import
+```
 
 Examples:
 ```bash
+# Check with compact output (default)
 cargo quality check src/
+
+# Check with detailed output
 cargo quality check --verbose .
+
+# Check only inline comments
+cargo quality check -a inline_comments
 ```
 
 ### fix
@@ -152,16 +195,23 @@ cargo quality check --verbose .
 Apply automatic quality fixes to your code.
 
 ```bash
-cargo quality fix [PATH] [--dry-run]
+cargo quality fix [PATH] [--dry-run] [--analyzer <NAME>]
 ```
 
 Options:
 - `--dry-run, -d` - Preview changes without modifying files
+- `--analyzer, -a <NAME>` - Apply fixes from specific analyzer only
 
 Examples:
 ```bash
+# Preview all fixes
 cargo quality fix --dry-run
+
+# Apply all fixes
 cargo quality fix src/
+
+# Apply only path import fixes
+cargo quality fix -a path_import
 ```
 
 ### fmt
@@ -210,12 +260,13 @@ cargo quality format .
 Visualize proposed changes before applying fixes.
 
 ```bash
-cargo quality diff [PATH] [--summary] [--interactive]
+cargo quality diff [PATH] [--summary] [--interactive] [--analyzer <NAME>]
 ```
 
 Options:
 - `--summary, -s` - Show brief summary of changes per file
 - `--interactive, -i` - Interactive mode to select which fixes to apply
+- `--analyzer, -a <NAME>` - Show diff for specific analyzer only
 
 Display modes:
 - **Full** (default) - Shows complete diff with old/new code side-by-side
@@ -232,6 +283,9 @@ cargo quality diff --summary
 
 # Interactive mode
 cargo quality diff --interactive
+
+# Show only path import changes
+cargo quality diff -a path_import
 ```
 
 Output format:
@@ -314,6 +368,75 @@ fn process() {
 When running `cargo quality diff`, empty lines are shown as a summary note:
 ```
 Note: 3 empty lines will be removed from lines: 3, 5, 11
+```
+
+### Inline Comments Analyzer
+
+Detects inline comments (`//`) inside function and method bodies. According to professional documentation standards, all explanations should be in doc comments (`///`), specifically in the `# Notes` section with code context.
+
+Bad:
+```rust
+fn calculate(x: i32, y: i32) -> i32 {
+    // Add the numbers
+    let sum = x + y;
+    // Multiply by 2
+    let result = sum * 2;
+    // Return final result
+    result
+}
+```
+
+Good:
+```rust
+/// Calculate something
+///
+/// # Notes
+///
+/// - Add the numbers - `let sum = x + y;`
+/// - Multiply by 2 - `let result = sum * 2;`
+/// - Return final result - `result`
+fn calculate(x: i32, y: i32) -> i32 {
+    let sum = x + y;
+    let result = sum * 2;
+    result
+}
+```
+
+**Important:** This analyzer only detects issues and provides suggestions. It does not apply automatic fixes (`Fix::None`). Use `cargo quality check -a inline_comments` to see all inline comments that should be moved to doc blocks.
+
+When running `cargo quality check -a inline_comments`, the output shows:
+```
+[inline_comments] - 3 issues
+  Inline comment found: "Add the numbers"
+Move to doc block # Notes section:
+/// - Add the numbers - `let sum = x + y;`
+  → Lines: 2
+
+  Inline comment found: "Multiply by 2"
+Move to doc block # Notes section:
+/// - Multiply by 2 - `let result = sum * 2;`
+  → Lines: 4
+```
+
+## Available Analyzers
+
+Run specific analyzers using the `--analyzer` or `-a` flag:
+
+- `path_import` - Path Import Analyzer
+- `format_args` - Format Args Analyzer
+- `empty_lines` - Empty Lines Analyzer
+- `inline_comments` - Inline Comments Analyzer
+
+Example:
+```bash
+# Check only inline comments
+cargo quality check -a inline_comments
+
+# Fix only path imports
+cargo quality fix -a path_import
+
+# Show diff only for empty lines
+cargo quality diff -a empty_lines
 ```
 
 ## Workflow

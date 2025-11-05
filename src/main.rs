@@ -375,7 +375,11 @@ fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppR
         }
 
         if report.total_issues() > 0 {
-            println!("{}", report);
+            if verbose {
+                print!("{}", report.display_verbose());
+            } else {
+                print!("{}", report.display_compact());
+            }
         } else if verbose {
             println!("OK {}", file_path.display());
         }
