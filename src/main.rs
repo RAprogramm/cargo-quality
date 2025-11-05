@@ -50,8 +50,9 @@ fn main() -> AppResult<()> {
     match args.command {
         Command::Check {
             path,
-            verbose
-        } => check_quality(&path, verbose)?,
+            verbose,
+            analyzer
+        } => check_quality(&path, verbose, analyzer.as_deref())?,
         Command::Fix {
             path,
             dry_run
@@ -316,12 +317,14 @@ fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> A
 /// Check code quality without modifying files.
 ///
 /// Analyzes all Rust files in the specified path and reports issues found
-/// by each analyzer. Prints detailed reports for files with issues.
+/// by each analyzer or a specific analyzer if provided. Prints detailed
+/// reports for files with issues.
 ///
 /// # Arguments
 ///
 /// * `path` - File or directory path to analyze
 /// * `verbose` - Print confirmation for files without issues
+/// * `analyzer_name` - Optional analyzer name to run (e.g., "inline_comments")
 ///
 /// # Returns
 ///
@@ -331,11 +334,32 @@ fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> A
 ///
 /// ```no_run
 /// use cargo_quality::check_quality;
-/// check_quality("src/", true).unwrap();
+/// check_quality("src/", true, None).unwrap();
+/// check_quality("src/", false, Some("inline_comments")).unwrap();
 /// ```
-fn check_quality(path: &str, verbose: bool) -> AppResult<()> {
+fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppResult<()> {
     let files = collect_rust_files(path)?;
-    let analyzers = get_analyzers();
+    let all_analyzers = get_analyzers();
+
+    let analyzers: Vec<_> = if let Some(name) = analyzer_name {
+        all_analyzers
+            .into_iter()
+            .filter(|a| a.name() == name)
+            .collect()
+    } else {
+        all_analyzers
+    };
+
+    if analyzers.is_empty() && analyzer_name.is_some() {
+        eprintln!(
+            "Unknown analyzer: {}. Available analyzers:",
+            analyzer_name.unwrap()
+        );
+        for analyzer in get_analyzers() {
+            eprintln!("  - {}", analyzer.name());
+        }
+        return Ok(());
+    }
 
     for file_path in files {
         let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
@@ -492,7 +516,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = check_quality(temp_dir.path().to_str().unwrap(), false);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None);
         assert!(result.is_ok());
     }
 
@@ -502,7 +526,7 @@ mod tests {
         let file_path = temp_dir.path().join("clean.rs");
         fs::write(&file_path, "fn main() {}").unwrap();
 
-        let result = check_quality(temp_dir.path().to_str().unwrap(), true);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), true, None);
         assert!(result.is_ok());
     }
 
@@ -532,7 +556,7 @@ mod tests {
         let file_path = temp_dir.path().join("bad.rs");
         fs::write(&file_path, "fn main() { invalid rust syntax +++").unwrap();
 
-        let result = check_quality(temp_dir.path().to_str().unwrap(), false);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None);
         assert!(result.is_err());
     }
 
@@ -563,7 +587,7 @@ mod tests {
     #[test]
     fn test_check_quality_no_files() {
         let temp_dir = TempDir::new().unwrap();
-        let result = check_quality(temp_dir.path().to_str().unwrap(), false);
+        let result = check_quality(temp_dir.path().to_str().unwrap(), false, None);
         assert!(result.is_ok());
     }
 

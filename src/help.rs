@@ -43,12 +43,18 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--verbose, -v".fg::<Magenta>()
+        "--verbose, -v | --analyzer, -a <NAME>".fg::<Magenta>()
     );
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo quality check src/".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo quality check -a inline_comments"
+            .fg::<Cyan>()
+            .italic()
     );
 
     println!(
@@ -227,6 +233,24 @@ pub fn display_help() {
     );
     println!(
         "    {} Shown as summary note in diff output",
+        "•".fg::<Blue>()
+    );
+
+    println!(
+        "\n  {} {}",
+        "✓".fg::<Green>(),
+        "Inline Comments Analyzer".fg::<Cyan>().bold()
+    );
+    println!(
+        "    {} Detects inline comments (//) inside function bodies",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Suggests moving to doc block # Notes section",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Use: cargo quality check -a inline_comments",
         "•".fg::<Blue>()
     );
 

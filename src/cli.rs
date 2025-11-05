@@ -47,7 +47,11 @@ pub enum Command {
 
         /// Show detailed output
         #[arg(short, long)]
-        verbose: bool
+        verbose: bool,
+
+        /// Run specific analyzer only (e.g., inline_comments, empty_lines)
+        #[arg(short, long)]
+        analyzer: Option<String>
     },
 
     /// Automatically fix quality issues
@@ -159,10 +163,12 @@ mod tests {
         match quality.command {
             Command::Check {
                 path,
-                verbose
+                verbose,
+                analyzer
             } => {
                 assert_eq!(path, "src");
                 assert!(!verbose);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Check command")
         }
@@ -205,10 +211,12 @@ mod tests {
         match quality.command {
             Command::Check {
                 path,
-                verbose
+                verbose,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(verbose);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Check command")
         }
@@ -360,10 +368,12 @@ mod tests {
         match args.command {
             Command::Check {
                 path,
-                verbose
+                verbose,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(verbose);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Check command")
         }
@@ -381,6 +391,25 @@ mod tests {
                 _ => panic!("Expected Fish shell")
             },
             _ => panic!("Expected Completions command")
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_check_with_analyzer() {
+        let args =
+            CargoCli::parse_from(["cargo", "quality", "check", "--analyzer", "inline_comments"]);
+        let CargoCli::Quality(quality) = args;
+        match quality.command {
+            Command::Check {
+                path,
+                verbose,
+                analyzer
+            } => {
+                assert_eq!(path, ".");
+                assert!(!verbose);
+                assert_eq!(analyzer, Some("inline_comments".to_string()));
+            }
+            _ => panic!("Expected Check command")
         }
     }
 }
