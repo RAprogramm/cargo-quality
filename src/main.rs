@@ -31,7 +31,7 @@ use crate::{
     differ::{DiffResult, generate_diff, show_full, show_interactive, show_summary},
     error::{IoError, ParseError},
     file_utils::collect_rust_files,
-    report::Report
+    report::{GlobalReport, Report}
 };
 
 mod analyzer;
@@ -363,6 +363,8 @@ fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppR
         return Ok(());
     }
 
+    let mut global_report = GlobalReport::new();
+
     for file_path in files {
         let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
         let ast = syn::parse_file(&content).map_err(ParseError::from)?;
@@ -374,14 +376,16 @@ fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppR
             report.add_result(analyzer.name().to_string(), result);
         }
 
-        if report.total_issues() > 0 {
-            if verbose {
-                print!("{}", report.display_verbose());
-            } else {
-                print!("{}", report.display_compact());
-            }
-        } else if verbose {
-            println!("OK {}", file_path.display());
+        if report.total_issues() > 0 || verbose {
+            global_report.add_report(report);
+        }
+    }
+
+    if global_report.total_issues() > 0 {
+        if verbose {
+            print!("{}", global_report.display_verbose());
+        } else {
+            print!("{}", global_report.display_compact());
         }
     }
 

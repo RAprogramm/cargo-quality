@@ -184,6 +184,160 @@ impl fmt::Display for Report {
     }
 }
 
+/// Global report aggregator across multiple files.
+///
+/// Collects reports from multiple files and provides globally grouped output.
+pub struct GlobalReport {
+    /// Collection of per-file reports
+    pub reports: Vec<Report>
+}
+
+impl GlobalReport {
+    /// Create new global report.
+    pub fn new() -> Self {
+        Self {
+            reports: Vec::new()
+        }
+    }
+
+    /// Add a file report to the global collection.
+    pub fn add_report(&mut self, report: Report) {
+        self.reports.push(report);
+    }
+
+    /// Calculate total issues across all files.
+    pub fn total_issues(&self) -> usize {
+        self.reports.iter().map(|r| r.total_issues()).sum()
+    }
+
+    /// Calculate total fixable issues across all files.
+    pub fn total_fixable(&self) -> usize {
+        self.reports.iter().map(|r| r.total_fixable()).sum()
+    }
+
+    /// Display globally grouped report (compact mode).
+    ///
+    /// Groups issues by analyzer and message across all files,
+    /// then shows which files have each issue.
+    pub fn display_compact(&self) -> String {
+        use std::collections::HashMap;
+
+        let mut output = String::new();
+
+        let mut analyzer_groups: HashMap<String, HashMap<String, Vec<(String, Vec<usize>)>>> =
+            HashMap::new();
+
+        for report in &self.reports {
+            for (analyzer_name, result) in &report.results {
+                if result.issues.is_empty() {
+                    continue;
+                }
+
+                let message_map = analyzer_groups.entry(analyzer_name.clone()).or_default();
+
+                for issue in &result.issues {
+                    let file_list = message_map.entry(issue.message.clone()).or_default();
+
+                    if let Some((_, lines)) =
+                        file_list.iter_mut().find(|(f, _)| f == &report.file_path)
+                    {
+                        lines.push(issue.line);
+                    } else {
+                        file_list.push((report.file_path.clone(), vec![issue.line]));
+                    }
+                }
+            }
+        }
+
+        let mut analyzer_names: Vec<_> = analyzer_groups.keys().collect();
+        analyzer_names.sort();
+
+        for analyzer_name in analyzer_names {
+            let message_map = &analyzer_groups[analyzer_name];
+            let total_issues: usize = message_map
+                .values()
+                .map(|files| files.iter().map(|(_, lines)| lines.len()).sum::<usize>())
+                .sum();
+
+            output.push_str(&format!(
+                "\n[{}] - {} issues\n",
+                analyzer_name, total_issues
+            ));
+
+            for (message, file_list) in message_map {
+                output.push_str(&format!("  {}\n", message));
+
+                for (file_path, mut lines) in file_list.iter().map(|(f, l)| (f, l.clone())) {
+                    lines.sort_unstable();
+                    output.push_str(&format!("  {} → Lines: ", file_path));
+
+                    let lines_str: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+                    let joined = lines_str.join(", ");
+
+                    if joined.len() > 70 {
+                        let mut line_chunks = Vec::new();
+                        let mut current_line = String::new();
+
+                        for (i, line_num) in lines_str.iter().enumerate() {
+                            let separator = if i == 0 { "" } else { ", " };
+                            let addition = format!("{}{}", separator, line_num);
+
+                            if current_line.len() + addition.len() > 70 && !current_line.is_empty()
+                            {
+                                line_chunks.push(current_line.clone());
+                                current_line = line_num.clone();
+                            } else {
+                                current_line.push_str(&addition);
+                            }
+                        }
+
+                        if !current_line.is_empty() {
+                            line_chunks.push(current_line);
+                        }
+
+                        for (i, chunk) in line_chunks.iter().enumerate() {
+                            if i == 0 {
+                                output.push_str(&format!("{}\n", chunk));
+                            } else {
+                                let indent = " ".repeat(file_path.len() + 11);
+                                output.push_str(&format!("{}{}\n", indent, chunk));
+                            }
+                        }
+                    } else {
+                        output.push_str(&format!("{}\n", joined));
+                    }
+                }
+
+                output.push('\n');
+            }
+        }
+
+        output.push_str(&format!("Total issues: {}\n", self.total_issues()));
+        output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+
+        output
+    }
+
+    /// Display globally grouped report (verbose mode).
+    ///
+    /// Shows all reports in full detail, one file at a time.
+    pub fn display_verbose(&self) -> String {
+        let mut output = String::new();
+        for report in &self.reports {
+            output.push_str(&format!("{}", report));
+        }
+        output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
+        output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+        output
+    }
+}
+
+impl Default for GlobalReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
