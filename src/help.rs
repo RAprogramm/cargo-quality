@@ -66,12 +66,16 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--dry-run, -d".fg::<Magenta>()
+        "--dry-run, -d | --analyzer, -a <NAME>".fg::<Magenta>()
     );
     println!(
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo quality fix --dry-run".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo quality fix -a path_import".fg::<Cyan>().italic()
     );
 
     println!(
@@ -124,7 +128,7 @@ pub fn display_help() {
     println!(
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
-        "--summary, -s | --interactive, -i".fg::<Magenta>()
+        "--summary, -s | --interactive, -i | --analyzer, -a <NAME>".fg::<Magenta>()
     );
     println!(
         "    {} {}",
@@ -135,6 +139,10 @@ pub fn display_help() {
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo quality diff --summary".fg::<Cyan>().italic()
+    );
+    println!(
+        "             {}",
+        "cargo quality diff -a path_import".fg::<Cyan>().italic()
     );
 
     println!("\n  {}", "help".fg::<Green>().bold());

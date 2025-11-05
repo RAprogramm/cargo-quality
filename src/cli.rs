@@ -62,7 +62,11 @@ pub enum Command {
 
         /// Dry run - show changes without applying
         #[arg(short, long)]
-        dry_run: bool
+        dry_run: bool,
+
+        /// Run specific analyzer only (e.g., inline_comments, empty_lines)
+        #[arg(short, long)]
+        analyzer: Option<String>
     },
 
     /// Format code according to quality rules
@@ -91,7 +95,11 @@ pub enum Command {
 
         /// Interactive mode - select changes to apply
         #[arg(short, long)]
-        interactive: bool
+        interactive: bool,
+
+        /// Run specific analyzer only (e.g., inline_comments, empty_lines)
+        #[arg(short, long)]
+        analyzer: Option<String>
     },
 
     /// Display beautiful help with examples and usage
@@ -181,10 +189,12 @@ mod tests {
         match quality.command {
             Command::Fix {
                 path,
-                dry_run
+                dry_run,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(dry_run);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Fix command")
         }
@@ -229,10 +239,12 @@ mod tests {
         match quality.command {
             Command::Fix {
                 path,
-                dry_run
+                dry_run,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(!dry_run);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Fix command")
         }
@@ -298,11 +310,13 @@ mod tests {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(!summary);
                 assert!(!interactive);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Diff command")
         }
@@ -316,11 +330,13 @@ mod tests {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(summary);
                 assert!(!interactive);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Diff command")
         }
@@ -334,11 +350,13 @@ mod tests {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer
             } => {
                 assert_eq!(path, ".");
                 assert!(!summary);
                 assert!(interactive);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Diff command")
         }
@@ -352,11 +370,13 @@ mod tests {
             Command::Diff {
                 path,
                 summary,
-                interactive
+                interactive,
+                analyzer
             } => {
                 assert_eq!(path, "src/");
                 assert!(!summary);
                 assert!(!interactive);
+                assert!(analyzer.is_none());
             }
             _ => panic!("Expected Diff command")
         }

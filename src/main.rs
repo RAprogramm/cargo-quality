@@ -55,8 +55,9 @@ fn main() -> AppResult<()> {
         } => check_quality(&path, verbose, analyzer.as_deref())?,
         Command::Fix {
             path,
-            dry_run
-        } => fix_quality(&path, dry_run)?,
+            dry_run,
+            analyzer
+        } => fix_quality(&path, dry_run, analyzer.as_deref())?,
         Command::Format {
             path
         } => format_quality(&path)?,
@@ -66,8 +67,9 @@ fn main() -> AppResult<()> {
         Command::Diff {
             path,
             summary,
-            interactive
-        } => run_diff(&path, summary, interactive)?,
+            interactive,
+            analyzer
+        } => run_diff(&path, summary, interactive, analyzer.as_deref())?,
         Command::Help => {
             help::display_help();
             return Ok(());
@@ -384,13 +386,15 @@ fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppR
 
 /// Fix quality issues automatically.
 ///
-/// Applies automatic fixes from all analyzers to Rust files in the specified
-/// path. Can run in dry-run mode to preview changes without modifying files.
+/// Applies automatic fixes from all analyzers or a specific analyzer to Rust
+/// files in the specified path. Can run in dry-run mode to preview changes
+/// without modifying files.
 ///
 /// # Arguments
 ///
 /// * `path` - File or directory path to fix
 /// * `dry_run` - If true, report fixes but do not modify files
+/// * `analyzer_name` - Optional analyzer name to run (e.g., "path_import")
 ///
 /// # Returns
 ///
@@ -401,12 +405,32 @@ fn check_quality(path: &str, verbose: bool, analyzer_name: Option<&str>) -> AppR
 ///
 /// ```no_run
 /// use cargo_quality::fix_quality;
-/// fix_quality("src/", true).unwrap();
-/// fix_quality("src/", false).unwrap();
+/// fix_quality("src/", true, None).unwrap();
+/// fix_quality("src/", false, Some("path_import")).unwrap();
 /// ```
-fn fix_quality(path: &str, dry_run: bool) -> AppResult<()> {
+fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppResult<()> {
     let files = collect_rust_files(path)?;
-    let analyzers = get_analyzers();
+    let all_analyzers = get_analyzers();
+
+    let analyzers: Vec<_> = if let Some(name) = analyzer_name {
+        all_analyzers
+            .into_iter()
+            .filter(|a| a.name() == name)
+            .collect()
+    } else {
+        all_analyzers
+    };
+
+    if analyzers.is_empty() && analyzer_name.is_some() {
+        eprintln!(
+            "Unknown analyzer: {}. Available analyzers:",
+            analyzer_name.unwrap()
+        );
+        for analyzer in get_analyzers() {
+            eprintln!("  - {}", analyzer.name());
+        }
+        return Ok(());
+    }
 
     for file_path in files {
         let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
@@ -444,7 +468,7 @@ fn fix_quality(path: &str, dry_run: bool) -> AppResult<()> {
 ///
 /// `AppResult<()>` - Ok if formatting succeeds, error otherwise
 fn format_quality(path: &str) -> AppResult<()> {
-    fix_quality(path, false)
+    fix_quality(path, false, None)
 }
 
 /// Show diff of proposed quality fixes.
@@ -460,6 +484,7 @@ fn format_quality(path: &str) -> AppResult<()> {
 /// * `path` - File or directory path to analyze
 /// * `summary` - Show brief summary instead of full diff
 /// * `interactive` - Enable interactive mode for selecting changes
+/// * `analyzer_name` - Optional analyzer name to run (e.g., "path_import")
 ///
 /// # Returns
 ///
@@ -469,11 +494,37 @@ fn format_quality(path: &str) -> AppResult<()> {
 ///
 /// ```no_run
 /// use cargo_quality::run_diff;
-/// run_diff("src/", false, false).unwrap();
+/// run_diff("src/", false, false, None).unwrap();
+/// run_diff("src/", true, false, Some("path_import")).unwrap();
 /// ```
-fn run_diff(path: &str, summary: bool, interactive: bool) -> AppResult<()> {
+fn run_diff(
+    path: &str,
+    summary: bool,
+    interactive: bool,
+    analyzer_name: Option<&str>
+) -> AppResult<()> {
     let files = collect_rust_files(path)?;
-    let analyzers = get_analyzers();
+    let all_analyzers = get_analyzers();
+
+    let analyzers: Vec<_> = if let Some(name) = analyzer_name {
+        all_analyzers
+            .into_iter()
+            .filter(|a| a.name() == name)
+            .collect()
+    } else {
+        all_analyzers
+    };
+
+    if analyzers.is_empty() && analyzer_name.is_some() {
+        eprintln!(
+            "Unknown analyzer: {}. Available analyzers:",
+            analyzer_name.unwrap()
+        );
+        for analyzer in get_analyzers() {
+            eprintln!("  - {}", analyzer.name());
+        }
+        return Ok(());
+    }
 
     let mut result = DiffResult::new();
 
@@ -536,7 +587,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.rs");
         fs::write(&file_path, "fn main() {}").unwrap();
 
-        let result = fix_quality(temp_dir.path().to_str().unwrap(), true);
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), true, None);
         assert!(result.is_ok());
     }
 
@@ -566,7 +617,7 @@ mod tests {
         let file_path = temp_dir.path().join("bad.rs");
         fs::write(&file_path, "fn main() { invalid rust +++").unwrap();
 
-        let result = fix_quality(temp_dir.path().to_str().unwrap(), false);
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), false, None);
         assert!(result.is_err());
     }
 
@@ -580,7 +631,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = fix_quality(temp_dir.path().to_str().unwrap(), false);
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), false, None);
         assert!(result.is_ok());
     }
 
@@ -594,7 +645,7 @@ mod tests {
     #[test]
     fn test_fix_quality_no_files() {
         let temp_dir = TempDir::new().unwrap();
-        let result = fix_quality(temp_dir.path().to_str().unwrap(), true);
+        let result = fix_quality(temp_dir.path().to_str().unwrap(), true, None);
         assert!(result.is_ok());
     }
 
@@ -622,7 +673,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None);
         assert!(result.is_ok());
     }
 
@@ -636,7 +687,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), true, false);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), true, false, None);
         assert!(result.is_ok());
     }
 
@@ -646,7 +697,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.rs");
         fs::write(&file_path, "fn main() {}").unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None);
         assert!(result.is_ok());
     }
 
@@ -656,7 +707,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.rs");
         fs::write(&file_path, "fn main() { invalid +++").unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None);
         assert!(result.is_err());
     }
 }
