@@ -86,12 +86,11 @@ impl InlineCommentsAnalyzer {
 
                 let code_line = Self::find_related_code_line(&lines, idx);
 
-                let suggestion = if let Some((code_idx, code)) = code_line {
+                let suggestion = if let Some((_code_idx, code)) = code_line {
                     format!(
-                        "Move to doc block # Notes section:\n/// - Line {}: `{}` - {}",
-                        code_idx + 1,
-                        code.trim(),
-                        comment_text
+                        "Move to doc block # Notes section:\n/// - {} - `{}`",
+                        comment_text,
+                        code.trim()
                     )
                 } else {
                     format!("Move to doc block # Notes section:\n/// - {}", comment_text)
@@ -310,7 +309,7 @@ mod tests {
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
         assert!(result.issues[0].message.contains("Calculate sum"));
-        assert!(result.issues[0].message.contains("let sum = a + b;"));
+        assert!(result.issues[0].message.contains("`let sum = a + b;`"));
     }
 
     #[test]

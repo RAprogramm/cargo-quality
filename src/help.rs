@@ -254,7 +254,11 @@ pub fn display_help() {
         "•".fg::<Blue>()
     );
     println!(
-        "    {} Suggests moving to doc block # Notes section",
+        "    {} Suggests moving to doc block # Notes section with code",
+        "•".fg::<Blue>()
+    );
+    println!(
+        "    {} Format: /// - Comment text - `code`",
         "•".fg::<Blue>()
     );
     println!(
