@@ -69,8 +69,9 @@ fn main() -> AppResult<()> {
             path,
             summary,
             interactive,
-            analyzer
-        } => run_diff(&path, summary, interactive, analyzer.as_deref())?,
+            analyzer,
+            color
+        } => run_diff(&path, summary, interactive, analyzer.as_deref(), color)?,
         Command::Help => {
             help::display_help();
             return Ok(());
@@ -512,14 +513,15 @@ fn format_quality(path: &str) -> AppResult<()> {
 ///
 /// ```no_run
 /// use cargo_quality::run_diff;
-/// run_diff("src/", false, false, None).unwrap();
-/// run_diff("src/", true, false, Some("path_import")).unwrap();
+/// run_diff("src/", false, false, None, false).unwrap();
+/// run_diff("src/", true, false, Some("path_import"), false).unwrap();
 /// ```
 fn run_diff(
     path: &str,
     summary: bool,
     interactive: bool,
-    analyzer_name: Option<&str>
+    analyzer_name: Option<&str>,
+    color: bool
 ) -> AppResult<()> {
     let files = collect_rust_files(path)?;
     let all_analyzers = get_analyzers();
@@ -557,11 +559,11 @@ fn run_diff(
     }
 
     if summary {
-        show_summary(&result);
+        show_summary(&result, color);
     } else if interactive {
-        let _selected = show_interactive(&result)?;
+        let _selected = show_interactive(&result, color)?;
     } else {
-        show_full(&result);
+        show_full(&result, color);
     }
 
     Ok(())
@@ -691,7 +693,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None, false);
         assert!(result.is_ok());
     }
 
@@ -705,7 +707,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), true, false, None);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), true, false, None, false);
         assert!(result.is_ok());
     }
 
@@ -715,7 +717,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.rs");
         fs::write(&file_path, "fn main() {}").unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None, false);
         assert!(result.is_ok());
     }
 
@@ -725,7 +727,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.rs");
         fs::write(&file_path, "fn main() { invalid +++").unwrap();
 
-        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None);
+        let result = run_diff(temp_dir.path().to_str().unwrap(), false, false, None, false);
         assert!(result.is_err());
     }
 }

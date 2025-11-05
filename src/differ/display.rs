@@ -32,7 +32,7 @@
 //! use cargo_quality::differ::{DiffResult, display::show_full};
 //!
 //! let result = DiffResult::new();
-//! show_full(&result);
+//! show_full(&result, false);
 //! ```
 
 pub mod formatting;
@@ -89,13 +89,21 @@ use crate::error::IoError;
 /// use cargo_quality::differ::{DiffResult, display::show_summary};
 ///
 /// let result = DiffResult::new();
-/// show_summary(&result);
+/// show_summary(&result, false);
 /// ```
-pub fn show_summary(result: &DiffResult) {
-    println!("\n{}\n", "DIFF SUMMARY".bold());
+pub fn show_summary(result: &DiffResult, color: bool) {
+    if color {
+        println!("\n{}\n", "DIFF SUMMARY".bold());
+    } else {
+        println!("\nDIFF SUMMARY\n");
+    }
 
     for file in &result.files {
-        println!("{}:", file.path.cyan().bold());
+        if color {
+            println!("{}:", file.path.cyan().bold());
+        } else {
+            println!("{}:", file.path);
+        }
 
         let mut analyzer_counts = HashMap::new();
         for entry in &file.entries {
@@ -103,26 +111,36 @@ pub fn show_summary(result: &DiffResult) {
         }
 
         for (analyzer, count) in analyzer_counts {
-            println!(
-                "  {}: {} {}",
-                analyzer.green(),
-                count,
-                if count == 1 { "issue" } else { "issues" }
-            );
+            if color {
+                println!(
+                    "  {}: {} {}",
+                    analyzer.green(),
+                    count,
+                    if count == 1 { "issue" } else { "issues" }
+                );
+            } else {
+                println!(
+                    "  {}: {} {}",
+                    analyzer,
+                    count,
+                    if count == 1 { "issue" } else { "issues" }
+                );
+            }
         }
         println!();
     }
 
-    println!(
-        "{}",
-        format!(
-            "Total: {} changes in {} files",
-            result.total_changes(),
-            result.total_files()
-        )
-        .yellow()
-        .bold()
+    let summary = format!(
+        "Total: {} changes in {} files",
+        result.total_changes(),
+        result.total_files()
     );
+
+    if color {
+        println!("{}", summary.yellow().bold());
+    } else {
+        println!("{}", summary);
+    }
 }
 
 /// Displays full responsive diff output with adaptive grid layout.
@@ -154,42 +172,53 @@ pub fn show_summary(result: &DiffResult) {
 /// use cargo_quality::differ::{DiffResult, display::show_full};
 ///
 /// let result = DiffResult::new();
-/// show_full(&result);
+/// show_full(&result, false);
 /// ```
-pub fn show_full(result: &DiffResult) {
-    println!("\n{}\n", "DIFF OUTPUT".bold());
+pub fn show_full(result: &DiffResult, color: bool) {
+    if color {
+        println!("\n{}\n", "DIFF OUTPUT".bold());
+    } else {
+        println!("\nDIFF OUTPUT\n");
+    }
 
     let term_width = terminal_size()
         .map(|(Width(w), _)| w as usize)
         .unwrap_or(80);
 
-    let rendered: Vec<_> = result.files.iter().map(render_file_block).collect();
+    let rendered: Vec<_> = result
+        .files
+        .iter()
+        .map(|f| render_file_block(f, color))
+        .collect();
 
     let columns = calculate_columns(&rendered, term_width);
 
     if columns > 1 {
-        println!(
-            "{}\n",
-            format!(
-                "Layout: {} columns (terminal width: {})",
-                columns, term_width
-            )
-            .dimmed()
+        let layout_info = format!(
+            "Layout: {} columns (terminal width: {})",
+            columns, term_width
         );
+
+        if color {
+            println!("{}\n", layout_info.dimmed());
+        } else {
+            println!("{}\n", layout_info);
+        }
     }
 
     render_grid(&rendered, columns);
 
-    println!(
-        "{}",
-        format!(
-            "Total: {} changes in {} files",
-            result.total_changes(),
-            result.total_files()
-        )
-        .yellow()
-        .bold()
+    let summary = format!(
+        "Total: {} changes in {} files",
+        result.total_changes(),
+        result.total_files()
     );
+
+    if color {
+        println!("{}", summary.yellow().bold());
+    } else {
+        println!("{}", summary);
+    }
 }
 
 /// Displays interactive diff with user prompts for selective application.
@@ -222,34 +251,55 @@ pub fn show_full(result: &DiffResult) {
 /// use cargo_quality::differ::{DiffResult, display::show_interactive};
 ///
 /// let result = DiffResult::new();
-/// let selected = show_interactive(&result).unwrap();
+/// let selected = show_interactive(&result, false).unwrap();
 /// println!("Selected {} changes", selected.len());
 /// ```
-pub fn show_interactive(result: &DiffResult) -> AppResult<Vec<DiffEntry>> {
+pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffEntry>> {
     let mut selected = Vec::with_capacity(result.total_changes());
     let mut apply_all = false;
 
-    println!("\n{}\n", "INTERACTIVE DIFF".bold());
-    println!("{}", "Commands: y=yes, n=no, a=all, q=quit\n".dimmed());
+    if color {
+        println!("\n{}\n", "INTERACTIVE DIFF".bold());
+        println!("{}", "Commands: y=yes, n=no, a=all, q=quit\n".dimmed());
+    } else {
+        println!("\nINTERACTIVE DIFF\n");
+        println!("Commands: y=yes, n=no, a=all, q=quit\n");
+    }
 
     for file in &result.files {
-        println!("{}", format!("File: {}", file.path).cyan().bold());
+        if color {
+            println!("{}", format!("File: {}", file.path).cyan().bold());
+        } else {
+            println!("File: {}", file.path);
+        }
         println!();
 
         for (idx, entry) in file.entries.iter().enumerate() {
-            println!(
-                "{} {}",
-                format!("[{}/{}]", idx + 1, file.entries.len()).yellow(),
-                entry.analyzer.green()
-            );
-            println!("{}", format!("Line {}:", entry.line).dimmed());
-            println!("{}", format!("- {}", entry.original).red());
+            if color {
+                println!(
+                    "{} {}",
+                    format!("[{}/{}]", idx + 1, file.entries.len()).yellow(),
+                    entry.analyzer.green()
+                );
+                println!("{}", format!("Line {}:", entry.line).dimmed());
+                println!("{}", format!("- {}", entry.original).red());
 
-            if let Some(import) = &entry.import {
-                println!("{}", format!("+ {}", import).green());
+                if let Some(import) = &entry.import {
+                    println!("{}", format!("+ {}", import).green());
+                }
+
+                println!("{}", format!("+ {}", entry.modified).green());
+            } else {
+                println!("[{}/{}] {}", idx + 1, file.entries.len(), entry.analyzer);
+                println!("Line {}:", entry.line);
+                println!("- {}", entry.original);
+
+                if let Some(import) = &entry.import {
+                    println!("+ {}", import);
+                }
+
+                println!("+ {}", entry.modified);
             }
-
-            println!("{}", format!("+ {}", entry.modified).green());
             println!();
 
             if apply_all {
@@ -306,13 +356,13 @@ mod tests {
     #[test]
     fn test_show_summary_empty() {
         let result = DiffResult::new();
-        show_summary(&result);
+        show_summary(&result, false);
     }
 
     #[test]
     fn test_show_full_empty() {
         let result = DiffResult::new();
-        show_full(&result);
+        show_full(&result, false);
     }
 
     #[test]
@@ -330,7 +380,7 @@ mod tests {
         });
 
         result.add_file(file);
-        show_summary(&result);
+        show_summary(&result, false);
     }
 
     #[test]
@@ -348,6 +398,6 @@ mod tests {
         });
 
         result.add_file(file);
-        show_full(&result);
+        show_full(&result, false);
     }
 }

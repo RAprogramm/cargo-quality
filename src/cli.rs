@@ -103,7 +103,11 @@ pub enum Command {
 
         /// Run specific analyzer only (e.g., inline_comments, empty_lines)
         #[arg(short, long)]
-        analyzer: Option<String>
+        analyzer: Option<String>,
+
+        /// Enable colored output
+        #[arg(short, long)]
+        color: bool
     },
 
     /// Display beautiful help with examples and usage
@@ -319,12 +323,14 @@ mod tests {
                 path,
                 summary,
                 interactive,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(!summary);
                 assert!(!interactive);
                 assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
@@ -339,12 +345,14 @@ mod tests {
                 path,
                 summary,
                 interactive,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(summary);
                 assert!(!interactive);
                 assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
@@ -359,12 +367,14 @@ mod tests {
                 path,
                 summary,
                 interactive,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, ".");
                 assert!(!summary);
                 assert!(interactive);
                 assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
@@ -379,12 +389,14 @@ mod tests {
                 path,
                 summary,
                 interactive,
-                analyzer
+                analyzer,
+                color
             } => {
                 assert_eq!(path, "src/");
                 assert!(!summary);
                 assert!(!interactive);
                 assert!(analyzer.is_none());
+                assert!(!color);
             }
             _ => panic!("Expected Diff command")
         }
