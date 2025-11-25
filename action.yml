@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 name: 'Cargo Quality Analyzer'
-description: 'Professional Rust code quality analysis with hardcoded standards - detect path imports, format args, empty lines, and inline comments'
+description: 'Professional Rust code quality analysis with hardcoded standards'
 author: 'RAprogramm'
 
 branding:
