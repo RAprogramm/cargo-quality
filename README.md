@@ -11,12 +11,35 @@
 
 Professional Rust code quality analysis tool with hardcoded standards.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Philosophy & Standards](#philosophy--standards)
+- [Features](#features)
+- [Installation](#installation)
+- [Requirements](#requirements)
+- [Usage](#usage)
+- [Commands](#commands)
+- [Analyzers](#analyzers)
+- [Available Analyzers](#available-analyzers)
+- [Workflow](#workflow)
+- [GitHub Action](#github-action)
+- [CI/CD Integration (Manual)](#cicd-integration-manual)
+- [Benefits](#benefits)
+- [Architecture](#architecture)
+- [Development](#development)
+- [Coverage](#coverage)
+- [Contributing](#contributing)
+- [License](#license)
+- [Project Information](#project-information)
+
 ## Overview
 
 cargo-quality is a command-line tool that enforces consistent code quality standards across Rust projects without requiring local configuration files. All quality rules are hardcoded in the binary, ensuring uniform formatting and analysis across your entire codebase and organization.
 
 <img width="1483" height="907" alt="image" src="https://github.com/user-attachments/assets/74a2449e-7231-468d-a660-28d2fedd1c5d" />
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Philosophy & Standards
 
@@ -57,6 +80,8 @@ This tool serves teams that value consistency, automation, and professional engi
 
 cargo-quality implements these standards as enforceable rules, making RustManifest principles executable and verifiable across your entire codebase.
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## Features
 
 - **Hardcoded Quality Standards** - Single source of truth for code quality
@@ -68,6 +93,8 @@ cargo-quality implements these standards as enforceable rules, making RustManife
 - **Format Integration** - Use cargo +nightly fmt with project standards
 - **Beautiful CLI** - Colored output with helpful examples
 - **CI/CD Ready** - Perfect for automated workflows
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Installation
 
@@ -107,10 +134,14 @@ cargo qual completions zsh > ~/.local/share/zsh/site-functions/_cargo-quality
 
 **Note:** Completions will be available in new shell sessions. To use immediately, restart your shell or source the completion file.
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## Requirements
 
 - Rust 1.90 or higher
 - cargo +nightly (for fmt command)
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Usage
 
@@ -138,6 +169,8 @@ cargo qual fmt
 # Display help
 cargo qual help
 ```
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Commands
 
@@ -335,6 +368,8 @@ Display detailed help with examples and usage patterns.
 cargo qual help
 ```
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## Analyzers
 
 ### Path Import Analyzer
@@ -449,6 +484,8 @@ Move to doc block # Notes section:
   → Lines: 4
 ```
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## Available Analyzers
 
 Run specific analyzers using the `--analyzer` or `-a` flag:
@@ -469,6 +506,8 @@ cargo qual fix -a path_import
 # Show diff only for empty lines
 cargo qual diff -a empty_lines
 ```
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Workflow
 
@@ -493,6 +532,8 @@ cargo qual fix
 ```bash
 cargo qual fmt
 ```
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## GitHub Action
 
@@ -560,6 +601,8 @@ Use outputs in subsequent steps:
   run: echo "Found ${{ steps.quality.outputs.total_issues }} issues"
 ```
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## CI/CD Integration (Manual)
 
 If you prefer manual installation:
@@ -587,6 +630,8 @@ jobs:
         run: cargo qual fmt
 ```
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## Benefits
 
 - **Consistency** - Same standards across all projects
@@ -594,6 +639,8 @@ jobs:
 - **Zero File I/O** - Fast execution with command-line arguments
 - **Version Controlled Standards** - Update standards by updating the tool
 - **Team Alignment** - Everyone uses the same quality rules
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Architecture
 
@@ -603,6 +650,8 @@ jobs:
 - **Comprehensive Testing** - 105 tests with 86.52% coverage
 - **Performance Benchmarks** - Blazing fast (format_args: 160ns, path_import: 857ns)
 - **Professional Error Handling** - Using masterror for consistency
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Development
 
@@ -630,6 +679,35 @@ Check license compliance:
 reuse lint
 ```
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
+## Coverage
+
+<details>
+<summary>Coverage Graphs</summary>
+
+### Sunburst
+
+The inner-most circle is the entire project, moving away from the center are folders then, finally, a single file. The size and color of each slice is representing the number of statements and the coverage, respectively.
+
+![Sunburst](https://codecov.io/gh/RAprogramm/cargo-quality/graphs/sunburst.svg?token=pCBAlZR7Bm)
+
+### Grid
+
+Each block represents a single file in the project. The size and color of each block is represented by the number of statements and the coverage, respectively.
+
+![Grid](https://codecov.io/gh/RAprogramm/cargo-quality/graphs/tree.svg?token=pCBAlZR7Bm)
+
+### Icicle
+
+The top section represents the entire project. Proceeding with folders and finally individual files. The size and color of each slice is representing the number of statements and the coverage, respectively.
+
+![Icicle](https://codecov.io/gh/RAprogramm/cargo-quality/graphs/icicle.svg?token=pCBAlZR7Bm)
+
+</details>
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## Contributing
 
 Contributions are welcome. Please ensure:
@@ -639,11 +717,15 @@ Contributions are welcome. Please ensure:
 - Documentation is updated
 - SPDX license headers are present
 
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 SPDX-License-Identifier: MIT
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Project Information
 
@@ -652,3 +734,5 @@ SPDX-License-Identifier: MIT
 - **Documentation**: https://docs.rs/cargo-quality
 - **Standards**: [RustManifest](https://github.com/RAprogramm/RustManifest)
 - **License**: MIT
+
+<div align="right"><a href="#table-of-contents">Back to top</a></div>
