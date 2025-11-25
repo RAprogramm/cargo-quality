@@ -1,6 +1,7 @@
 # cargo-quality
 
-[![CI](https://github.com/RAprogramm/cargo-quality/actions/workflows/rust.yml/badge.svg)](https://github.com/RAprogramm/cargo-quality/actions/workflows/rust.yml)
+[![CI](https://github.com/RAprogramm/cargo-quality/actions/workflows/ci.yml/badge.svg)](https://github.com/RAprogramm/cargo-quality/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/RAprogramm/cargo-quality/graph/badge.svg)](https://codecov.io/gh/RAprogramm/cargo-quality)
 [![Crates.io](https://img.shields.io/crates/v/cargo-quality.svg)](https://crates.io/crates/cargo-quality)
 [![Documentation](https://docs.rs/cargo-quality/badge.svg)](https://docs.rs/cargo-quality)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
