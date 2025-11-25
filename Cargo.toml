@@ -20,13 +20,13 @@ clap_complete = "4"
 syn = { version = "2", features = ["full", "extra-traits", "visit", "visit-mut"] }
 quote = "1"
 proc-macro2 = { version = "1", features = ["span-locations"] }
-masterror = "0.24"
+masterror = "0.25"
 ignore = "0.4"
 prettyplease = "0.2"
 owo-colors = "4"
 terminal_size = "0.4"
 unicode-width = "0.2"
-console = "0.15"
+console = "0.16"
 
 [dev-dependencies]
 criterion = "0.7"
