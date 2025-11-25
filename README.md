@@ -24,6 +24,11 @@ Professional Rust code quality analysis tool with hardcoded standards.
 - [Available Analyzers](#available-analyzers)
 - [Workflow](#workflow)
 - [GitHub Action](#github-action)
+  - [Action Inputs](#action-inputs)
+  - [Action Outputs](#action-outputs)
+  - [PR Comment](#pr-comment)
+  - [Advanced Usage](#advanced-usage)
+  - [Versioning](#versioning)
 - [CI/CD Integration (Manual)](#cicd-integration-manual)
 - [Benefits](#benefits)
 - [Architecture](#architecture)
@@ -551,7 +556,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run cargo-quality
-        uses: RAprogramm/cargo-quality@v1
+        uses: RAprogramm/cargo-quality@v0
         with:
           path: 'src/'
           fail_on_issues: 'true'
@@ -579,12 +584,39 @@ jobs:
 | `inline_comments_issues` | Issues from inline_comments analyzer |
 | `has_issues` | Whether any issues were found |
 
+### PR Comment
+
+When `post_comment: 'true'` is set, the action posts a detailed report to your PR:
+
+```
+## cargo-quality report
+
+> ⚠️ **5 issue(s) found** - Please review the details below
+
+| Analyzer | Issues | Distribution |
+|:---------|-------:|:-------------|
+| `path_import` | 3 | `██████░░░░` |
+| `format_args` | 2 | `████░░░░░░` |
+| `empty_lines` | 0 | `░░░░░░░░░░` |
+| `inline_comments` | 0 | `░░░░░░░░░░` |
+| **Total** | **5** | |
+
+📎 Commit abc1234 | 🚀 CI Run | 📖 Documentation
+```
+
+Features:
+- Progress bars for visual distribution
+- Links to commit, CI run, and documentation
+- Collapsible detailed output
+- Collapsible analyzer descriptions
+- Auto-updates existing comment on new pushes
+
 ### Advanced Usage
 
 Run specific analyzer only:
 
 ```yaml
-- uses: RAprogramm/cargo-quality@v1
+- uses: RAprogramm/cargo-quality@v0
   with:
     analyzer: 'path_import'
     fail_on_issues: 'false'
@@ -593,13 +625,21 @@ Run specific analyzer only:
 Use outputs in subsequent steps:
 
 ```yaml
-- uses: RAprogramm/cargo-quality@v1
+- uses: RAprogramm/cargo-quality@v0
   id: quality
 
 - name: Check results
   if: steps.quality.outputs.has_issues == 'true'
   run: echo "Found ${{ steps.quality.outputs.total_issues }} issues"
 ```
+
+### Versioning
+
+| Tag | Description |
+|-----|-------------|
+| `@v0` | Latest 0.x.x release (recommended) |
+| `@v0.1.0` | Specific version |
+| `@v1` | Latest 1.x.x release (when available) |
 
 <div align="right"><a href="#table-of-contents">Back to top</a></div>
 
