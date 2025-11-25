@@ -137,7 +137,7 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        MARKER="<!-- cargo-quality-comment -->"
+        MARKER="<!-- cargo-quality-report -->"
         PR_NUMBER=${{ github.event.pull_request.number }}
 
         TOTAL=${{ steps.analyze.outputs.total_issues }}
@@ -146,29 +146,62 @@ runs:
         EMPTY_LINES=${{ steps.analyze.outputs.empty_lines_issues }}
         INLINE_COMMENTS=${{ steps.analyze.outputs.inline_comments_issues }}
 
+        REPO="${{ github.repository }}"
+        SHA="${{ github.event.pull_request.head.sha }}"
+        SHORT_SHA="${SHA:0:7}"
+        RUN_URL="https://github.com/$REPO/actions/runs/${{ github.run_id }}"
+        COMMIT_URL="https://github.com/$REPO/commit/$SHA"
+
+        # Status badge
         if [ "$TOTAL" -eq 0 ]; then
-          STATUS="All checks passed"
-          ICON=":white_check_mark:"
+          HEADER="## [cargo-quality](https://github.com/RAprogramm/cargo-quality) report"
+          STATUS_LINE="> :white_check_mark: **All checks passed** - No issues found"
         else
-          STATUS="Found $TOTAL issues"
-          ICON=":warning:"
+          HEADER="## [cargo-quality](https://github.com/RAprogramm/cargo-quality) report"
+          STATUS_LINE="> :warning: **$TOTAL issue(s) found** - Please review the details below"
         fi
 
+        # Progress bars
+        make_bar() {
+          local count=$1
+          local max=$2
+          if [ "$max" -eq 0 ]; then
+            echo "\`░░░░░░░░░░\`"
+          else
+            local filled=$((count * 10 / max))
+            [ "$filled" -gt 10 ] && filled=10
+            local empty=$((10 - filled))
+            local bar=""
+            for ((i=0; i<filled; i++)); do bar+="█"; done
+            for ((i=0; i<empty; i++)); do bar+="░"; done
+            echo "\`$bar\`"
+          fi
+        }
+
+        MAX_ISSUES=$TOTAL
+        [ "$MAX_ISSUES" -eq 0 ] && MAX_ISSUES=1
+
+        BAR_PATH=$(make_bar $PATH_IMPORT $MAX_ISSUES)
+        BAR_FORMAT=$(make_bar $FORMAT_ARGS $MAX_ISSUES)
+        BAR_EMPTY=$(make_bar $EMPTY_LINES $MAX_ISSUES)
+        BAR_INLINE=$(make_bar $INLINE_COMMENTS $MAX_ISSUES)
+
+        # Build comment
         COMMENT="$MARKER
-        ## $ICON Cargo Quality Analysis
+        $HEADER
 
-        **Status:** $STATUS
+        $STATUS_LINE
 
-        | Analyzer | Issues |
-        |----------|--------|
-        | Path Import | $PATH_IMPORT |
-        | Format Args | $FORMAT_ARGS |
-        | Empty Lines | $EMPTY_LINES |
-        | Inline Comments | $INLINE_COMMENTS |
-        | **Total** | **$TOTAL** |
+        | Analyzer | Issues | Distribution |
+        |:---------|-------:|:-------------|
+        | [\`path_import\`](https://github.com/RAprogramm/cargo-quality#analyzers) | $PATH_IMPORT | $BAR_PATH |
+        | [\`format_args\`](https://github.com/RAprogramm/cargo-quality#analyzers) | $FORMAT_ARGS | $BAR_FORMAT |
+        | [\`empty_lines\`](https://github.com/RAprogramm/cargo-quality#analyzers) | $EMPTY_LINES | $BAR_EMPTY |
+        | [\`inline_comments\`](https://github.com/RAprogramm/cargo-quality#analyzers) | $INLINE_COMMENTS | $BAR_INLINE |
+        | **Total** | **$TOTAL** | |
 
         <details>
-        <summary>Full Output</summary>
+        <summary>:mag: View detailed analysis output</summary>
 
         \`\`\`
         $OUTPUT
@@ -176,8 +209,21 @@ runs:
 
         </details>
 
+        <details>
+        <summary>:books: What do these analyzers check?</summary>
+
+        | Analyzer | Description | Fix |
+        |:---------|:------------|:----|
+        | \`path_import\` | Detects \`std::path::Path\` style imports | Use \`use\` statements |
+        | \`format_args\` | Detects \`format!(\"{}\", x)\` patterns | Use \`format!(\"{x}\")\` |
+        | \`empty_lines\` | Detects empty lines in function bodies | Remove extra blank lines |
+        | \`inline_comments\` | Detects \`// comment\` inside functions | Move to doc comments or remove |
+
+        </details>
+
         ---
-        *Analyzed with [cargo-quality](https://github.com/RAprogramm/cargo-quality)*"
+
+        :link: *Commit [\`$SHORT_SHA\`]($COMMIT_URL) | :rocket: [CI Run]($RUN_URL) | :book: [Documentation](https://docs.rs/cargo-quality)*"
 
         if [ "${{ inputs.update_comment }}" = "true" ]; then
           EXISTING=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
