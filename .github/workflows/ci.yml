@@ -168,9 +168,9 @@ jobs:
     needs: [changes, test, doc, bench, audit, reuse]
     if: |
       always() &&
-      (needs.changes.outputs.rust == 'true' || startsWith(github.ref, 'refs/tags/v')) &&
-      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
-      (needs.doc.result == 'success' || needs.doc.result == 'skipped') &&
+      startsWith(github.ref, 'refs/tags/v') &&
+      needs.test.result == 'success' &&
+      needs.doc.result == 'success' &&
       (needs.bench.result == 'success' || needs.bench.result == 'skipped') &&
       (needs.audit.result == 'success' || needs.audit.result == 'skipped') &&
       (needs.reuse.result == 'success' || needs.reuse.result == 'skipped')
