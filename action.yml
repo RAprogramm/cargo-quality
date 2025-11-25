@@ -1,0 +1,197 @@
+# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+# SPDX-License-Identifier: MIT
+
+name: 'Cargo Quality Analyzer'
+description: 'Professional Rust code quality analysis with hardcoded standards - detect path imports, format args, empty lines, and inline comments'
+author: 'RAprogramm'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to analyze'
+    required: false
+    default: 'src/'
+  analyzer:
+    description: 'Specific analyzer to run (path_import, format_args, empty_lines, inline_comments)'
+    required: false
+    default: ''
+  fail_on_issues:
+    description: 'Fail the action if issues are found'
+    required: false
+    default: 'true'
+  post_comment:
+    description: 'Post analysis results as PR comment'
+    required: false
+    default: 'false'
+  update_comment:
+    description: 'Update existing comment instead of creating new'
+    required: false
+    default: 'true'
+
+outputs:
+  total_issues:
+    description: 'Total number of issues found'
+    value: ${{ steps.analyze.outputs.total_issues }}
+  path_import_issues:
+    description: 'Issues from path_import analyzer'
+    value: ${{ steps.analyze.outputs.path_import_issues }}
+  format_args_issues:
+    description: 'Issues from format_args analyzer'
+    value: ${{ steps.analyze.outputs.format_args_issues }}
+  empty_lines_issues:
+    description: 'Issues from empty_lines analyzer'
+    value: ${{ steps.analyze.outputs.empty_lines_issues }}
+  inline_comments_issues:
+    description: 'Issues from inline_comments analyzer'
+    value: ${{ steps.analyze.outputs.inline_comments_issues }}
+  has_issues:
+    description: 'Whether any issues were found'
+    value: ${{ steps.analyze.outputs.has_issues }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo-quality
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/cargo-qual
+          ${{ github.action_path }}/target
+        key: cargo-quality-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          cargo-quality-${{ runner.os }}-
+
+    - name: Build cargo-quality
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        if [ ! -f target/release/cargo-qual ]; then
+          cargo build --release
+        fi
+
+    - name: Run analysis
+      id: analyze
+      shell: bash
+      run: |
+        ANALYZER_ARG=""
+        if [ -n "${{ inputs.analyzer }}" ]; then
+          ANALYZER_ARG="-a ${{ inputs.analyzer }}"
+        fi
+
+        OUTPUT=$(${{ github.action_path }}/target/release/cargo-qual check ${{ inputs.path }} $ANALYZER_ARG 2>&1) || true
+
+        echo "Analysis output:"
+        echo "$OUTPUT"
+
+        TOTAL=0
+        PATH_IMPORT=0
+        FORMAT_ARGS=0
+        EMPTY_LINES=0
+        INLINE_COMMENTS=0
+
+        if echo "$OUTPUT" | grep -q "\[path_import\]"; then
+          PATH_IMPORT=$(echo "$OUTPUT" | grep -oP '\[path_import\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
+        fi
+        if echo "$OUTPUT" | grep -q "\[format_args\]"; then
+          FORMAT_ARGS=$(echo "$OUTPUT" | grep -oP '\[format_args\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
+        fi
+        if echo "$OUTPUT" | grep -q "\[empty_lines\]"; then
+          EMPTY_LINES=$(echo "$OUTPUT" | grep -oP '\[empty_lines\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
+        fi
+        if echo "$OUTPUT" | grep -q "\[inline_comments\]"; then
+          INLINE_COMMENTS=$(echo "$OUTPUT" | grep -oP '\[inline_comments\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
+        fi
+
+        TOTAL=$((PATH_IMPORT + FORMAT_ARGS + EMPTY_LINES + INLINE_COMMENTS))
+
+        echo "total_issues=$TOTAL" >> $GITHUB_OUTPUT
+        echo "path_import_issues=$PATH_IMPORT" >> $GITHUB_OUTPUT
+        echo "format_args_issues=$FORMAT_ARGS" >> $GITHUB_OUTPUT
+        echo "empty_lines_issues=$EMPTY_LINES" >> $GITHUB_OUTPUT
+        echo "inline_comments_issues=$INLINE_COMMENTS" >> $GITHUB_OUTPUT
+
+        if [ "$TOTAL" -gt 0 ]; then
+          echo "has_issues=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_issues=false" >> $GITHUB_OUTPUT
+        fi
+
+        echo "OUTPUT<<EOF" >> $GITHUB_ENV
+        echo "$OUTPUT" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+        if [ "${{ inputs.fail_on_issues }}" = "true" ] && [ "$TOTAL" -gt 0 ]; then
+          echo "::error::Found $TOTAL code quality issues"
+          exit 1
+        fi
+
+    - name: Post PR comment
+      if: inputs.post_comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        MARKER="<!-- cargo-quality-comment -->"
+        PR_NUMBER=${{ github.event.pull_request.number }}
+
+        TOTAL=${{ steps.analyze.outputs.total_issues }}
+        PATH_IMPORT=${{ steps.analyze.outputs.path_import_issues }}
+        FORMAT_ARGS=${{ steps.analyze.outputs.format_args_issues }}
+        EMPTY_LINES=${{ steps.analyze.outputs.empty_lines_issues }}
+        INLINE_COMMENTS=${{ steps.analyze.outputs.inline_comments_issues }}
+
+        if [ "$TOTAL" -eq 0 ]; then
+          STATUS="All checks passed"
+          ICON=":white_check_mark:"
+        else
+          STATUS="Found $TOTAL issues"
+          ICON=":warning:"
+        fi
+
+        COMMENT="$MARKER
+        ## $ICON Cargo Quality Analysis
+
+        **Status:** $STATUS
+
+        | Analyzer | Issues |
+        |----------|--------|
+        | Path Import | $PATH_IMPORT |
+        | Format Args | $FORMAT_ARGS |
+        | Empty Lines | $EMPTY_LINES |
+        | Inline Comments | $INLINE_COMMENTS |
+        | **Total** | **$TOTAL** |
+
+        <details>
+        <summary>Full Output</summary>
+
+        \`\`\`
+        $OUTPUT
+        \`\`\`
+
+        </details>
+
+        ---
+        *Analyzed with [cargo-quality](https://github.com/RAprogramm/cargo-quality)*"
+
+        if [ "${{ inputs.update_comment }}" = "true" ]; then
+          EXISTING=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" | head -1)
+
+          if [ -n "$EXISTING" ]; then
+            gh api repos/${{ github.repository }}/issues/comments/${EXISTING} \
+              -X PATCH -f body="$COMMENT"
+            echo "Updated existing comment"
+          else
+            gh pr comment $PR_NUMBER --body "$COMMENT"
+            echo "Created new comment"
+          fi
+        else
+          gh pr comment $PR_NUMBER --body "$COMMENT"
+          echo "Created new comment"
+        fi
