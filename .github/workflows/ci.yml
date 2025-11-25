@@ -330,6 +330,8 @@ jobs:
         with:
           body_path: RELEASE_NOTES.md
           files: artifacts/**/*
+          draft: false
+          prerelease: false
 
       - name: Update major version tag
         run: |
