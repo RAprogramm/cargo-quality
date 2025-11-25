@@ -1,11 +1,13 @@
 # cargo-quality
 
 [![CI](https://github.com/RAprogramm/cargo-quality/actions/workflows/ci.yml/badge.svg)](https://github.com/RAprogramm/cargo-quality/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/RAprogramm/cargo-quality/graph/badge.svg)](https://codecov.io/gh/RAprogramm/cargo-quality)
+[![Release](https://img.shields.io/github/v/release/RAprogramm/cargo-quality)](https://github.com/RAprogramm/cargo-quality/releases/latest)
 [![Crates.io](https://img.shields.io/crates/v/cargo-quality.svg)](https://crates.io/crates/cargo-quality)
-[![Documentation](https://docs.rs/cargo-quality/badge.svg)](https://docs.rs/cargo-quality)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![REUSE compliant](https://api.reuse.software/badge/github.com/RAprogramm/cargo-quality)](https://api.reuse.software/info/github.com/RAprogramm/cargo-quality)
+[![docs.rs](https://img.shields.io/docsrs/cargo-quality)](https://docs.rs/cargo-quality)
+[![codecov](https://codecov.io/gh/RAprogramm/cargo-quality/graph/badge.svg)](https://codecov.io/gh/RAprogramm/cargo-quality)
+[![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/cargo-quality?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)](https://hitsofcode.com/github/RAprogramm/cargo-quality/view?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/RAprogramm/cargo-quality/blob/main/LICENSES/MIT.txt)
+[![REUSE](https://api.reuse.software/badge/github.com/RAprogramm/cargo-quality)](https://api.reuse.software/info/github.com/RAprogramm/cargo-quality)
 
 Professional Rust code quality analysis tool with hardcoded standards.
 
@@ -492,9 +494,75 @@ cargo qual fix
 cargo qual fmt
 ```
 
-## CI/CD Integration
+## GitHub Action
 
-Example GitHub Actions workflow:
+Use cargo-quality directly in your CI/CD pipelines:
+
+```yaml
+name: Quality Check
+
+on: [pull_request]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run cargo-quality
+        uses: RAprogramm/cargo-quality@v1
+        with:
+          path: 'src/'
+          fail_on_issues: 'true'
+          post_comment: 'true'
+```
+
+### Action Inputs
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `path` | Path to analyze | `src/` |
+| `analyzer` | Specific analyzer to run | (all) |
+| `fail_on_issues` | Fail if issues found | `true` |
+| `post_comment` | Post results as PR comment | `false` |
+| `update_comment` | Update existing comment | `true` |
+
+### Action Outputs
+
+| Output | Description |
+|--------|-------------|
+| `total_issues` | Total number of issues found |
+| `path_import_issues` | Issues from path_import analyzer |
+| `format_args_issues` | Issues from format_args analyzer |
+| `empty_lines_issues` | Issues from empty_lines analyzer |
+| `inline_comments_issues` | Issues from inline_comments analyzer |
+| `has_issues` | Whether any issues were found |
+
+### Advanced Usage
+
+Run specific analyzer only:
+
+```yaml
+- uses: RAprogramm/cargo-quality@v1
+  with:
+    analyzer: 'path_import'
+    fail_on_issues: 'false'
+```
+
+Use outputs in subsequent steps:
+
+```yaml
+- uses: RAprogramm/cargo-quality@v1
+  id: quality
+
+- name: Check results
+  if: steps.quality.outputs.has_issues == 'true'
+  run: echo "Found ${{ steps.quality.outputs.total_issues }} issues"
+```
+
+## CI/CD Integration (Manual)
+
+If you prefer manual installation:
 
 ```yaml
 name: Quality Check
