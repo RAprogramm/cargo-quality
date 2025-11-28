@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Regenerate changelog with SPDX header [skip ci] ([1a9ef06](https://github.com/RAprogramm/cargo-quality/commit/1a9ef06154672d2eceab9696670c738d6f624b0a))
 - Update changelog [skip ci] ([90c28e5](https://github.com/RAprogramm/cargo-quality/commit/90c28e5278b3b6bb92141581e2c03fa7cea583c6))
 - Update changelog [skip ci] ([db91869](https://github.com/RAprogramm/cargo-quality/commit/db9186981b44aff8f9ec953a21666f67d5f9b671))
 

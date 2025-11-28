@@ -1,6 +1,6 @@
 [package]
 name = "cargo-quality"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 authors = ["RAprogramm <andrey.rozanov.vl@gmail.com>"]
 description = "Professional Rust code quality analysis tool with hardcoded standards"
