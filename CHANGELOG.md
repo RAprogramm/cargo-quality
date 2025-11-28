@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
-SPDX-License-Identifier: MIT
--->
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -14,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Update changelog [skip ci] ([797682b](https://github.com/RAprogramm/cargo-quality/commit/797682b2f592092fb571e8bab8e2fee6d04aa85a))
 - Update changelog [skip ci] ([30355aa](https://github.com/RAprogramm/cargo-quality/commit/30355aa22f2402014d558b18d4b1cd1091b5a871))
+
+### Fixed
+
+- Add REUSE header to CHANGELOG.md ([d90f923](https://github.com/RAprogramm/cargo-quality/commit/d90f923e2211243c93452a0f92758f7534b06a41))
 
 ### Miscellaneous
 
