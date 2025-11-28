@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+SPDX-License-Identifier: MIT
+-->
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -9,10 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Update changelog [skip ci] ([90c28e5](https://github.com/RAprogramm/cargo-quality/commit/90c28e5278b3b6bb92141581e2c03fa7cea583c6))
 - Update changelog [skip ci] ([db91869](https://github.com/RAprogramm/cargo-quality/commit/db9186981b44aff8f9ec953a21666f67d5f9b671))
 
 ### Fixed
 
+- Add SPDX header to generated CHANGELOG ([33d3c14](https://github.com/RAprogramm/cargo-quality/commit/33d3c145bb7436543a4fdf8cfd5b847d2334b7c4))
 - Allow dirty publish for CI artifacts ([f4fbfb0](https://github.com/RAprogramm/cargo-quality/commit/f4fbfb05edd686fd340422da9b836de61a67328f))
 
 ### Miscellaneous
@@ -36,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2025-11-28
 
+### Miscellaneous
+
+- Bump version to 0.1.1 ([92591f0](https://github.com/RAprogramm/cargo-quality/commit/92591f0662543c9add677a97de6a31209b7ab10f))
+
+## [0] - 2025-11-28
+
 ### Added
 
 - Improve PR comment with progress bars and links ([8a661d3](https://github.com/RAprogramm/cargo-quality/commit/8a661d3b5a9f328fa8a58ebf236b21c60392be55))
@@ -51,10 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Update README with GitHub Action details and PR comment preview ([d9f331e](https://github.com/RAprogramm/cargo-quality/commit/d9f331e73974ead60bcacc3577b3b4ca6f096f2b))
-
-### Miscellaneous
-
-- Bump version to 0.1.1 ([92591f0](https://github.com/RAprogramm/cargo-quality/commit/92591f0662543c9add677a97de6a31209b7ab10f))
 
 ## [0.1.0] - 2025-11-25
 
@@ -80,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.2...HEAD
 [0.1.2]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.0...v0.1.1
+[0.1.1]: https://github.com/RAprogramm/cargo-quality/compare/v0...v0.1.1
+[0]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.0...v0
 [0.1.0]: https://github.com/RAprogramm/cargo-quality/releases/tag/v0.1.0
 
