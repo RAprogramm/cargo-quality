@@ -6,7 +6,10 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags:
+      # Only semver tags trigger full release pipeline
+      # Major tags (v0, v1, v2) are handled separately and don't trigger this workflow
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
   pull_request:
     branches: [main]
 
@@ -31,6 +34,7 @@ jobs:
       reuse: ${{ steps.filter.outputs.reuse }}
       version: ${{ steps.version.outputs.version }}
       version_changed: ${{ steps.version.outputs.changed }}
+      is_release: ${{ steps.context.outputs.is_release }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -66,12 +70,20 @@ jobs:
           else
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
+      - name: Detect context
+        id: context
+        run: |
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
 
   fmt:
     name: Format
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.rust == 'true' || startsWith(github.ref, 'refs/tags/v')
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.is_release == 'true'
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
@@ -83,7 +95,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.rust == 'true' || startsWith(github.ref, 'refs/tags/v')
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.is_release == 'true'
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -96,7 +108,7 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.deps == 'true' || startsWith(github.ref, 'refs/tags/v')
+    if: needs.changes.outputs.deps == 'true' || needs.changes.outputs.is_release == 'true'
     steps:
       - uses: actions/checkout@v6
       - uses: rustsec/audit-check@v2
@@ -107,7 +119,7 @@ jobs:
     name: REUSE Compliance
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.reuse == 'true' || startsWith(github.ref, 'refs/tags/v')
+    if: needs.changes.outputs.reuse == 'true' || needs.changes.outputs.is_release == 'true'
     steps:
       - uses: actions/checkout@v6
       - uses: fsfe/reuse-action@v6
@@ -121,7 +133,7 @@ jobs:
     needs: [changes, fmt, clippy]
     if: |
       always() &&
-      (needs.changes.outputs.rust == 'true' || startsWith(github.ref, 'refs/tags/v')) &&
+      (needs.changes.outputs.rust == 'true' || needs.changes.outputs.is_release == 'true') &&
       (needs.fmt.result == 'success' || needs.fmt.result == 'skipped') &&
       (needs.clippy.result == 'success' || needs.clippy.result == 'skipped')
     steps:
@@ -157,7 +169,7 @@ jobs:
     needs: [changes, fmt, clippy]
     if: |
       always() &&
-      (needs.changes.outputs.rust == 'true' || startsWith(github.ref, 'refs/tags/v')) &&
+      (needs.changes.outputs.rust == 'true' || needs.changes.outputs.is_release == 'true') &&
       (needs.fmt.result == 'success' || needs.fmt.result == 'skipped') &&
       (needs.clippy.result == 'success' || needs.clippy.result == 'skipped')
     steps:
@@ -177,7 +189,7 @@ jobs:
     needs: [changes, test]
     if: |
       always() &&
-      (needs.changes.outputs.rust == 'true' || startsWith(github.ref, 'refs/tags/v')) &&
+      (needs.changes.outputs.rust == 'true' || needs.changes.outputs.is_release == 'true') &&
       needs.test.result == 'success'
     steps:
       - uses: actions/checkout@v6
@@ -258,14 +270,14 @@ jobs:
           git push origin "$TAG"
 
   # ============================================================================
-  # STAGE 6: Release builds (tag only, parallel per platform)
+  # STAGE 6: Release builds (semver tags only)
   # ============================================================================
   release-build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    needs: [test, doc, audit, reuse]
+    needs: [changes, test, doc, audit, reuse]
     if: |
-      startsWith(github.ref, 'refs/tags/v') &&
+      needs.changes.outputs.is_release == 'true' &&
       needs.test.result == 'success' &&
       needs.doc.result == 'success' &&
       (needs.audit.result == 'success' || needs.audit.result == 'skipped') &&
@@ -331,13 +343,13 @@ jobs:
           path: cargo-qual-${{ matrix.target }}.${{ matrix.archive }}
 
   # ============================================================================
-  # STAGE 7: GitHub Release (after all builds complete)
+  # STAGE 7: GitHub Release (semver tags only)
   # ============================================================================
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [release-build]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [changes, release-build]
+    if: needs.changes.outputs.is_release == 'true'
     permissions:
       contents: write
     steps:
@@ -368,8 +380,8 @@ jobs:
   update-major-tag:
     name: Update Major Version Tag
     runs-on: ubuntu-latest
-    needs: [release]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [changes, release]
+    if: needs.changes.outputs.is_release == 'true'
     permissions:
       contents: write
     steps:
@@ -377,6 +389,8 @@ jobs:
         with:
           fetch-depth: 0
       - name: Update major version tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           MAJOR=${TAG%%.*}
@@ -384,44 +398,42 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -fa "$MAJOR" -m "Release $TAG"
-          git push origin "$MAJOR" --force
+          # Use gh api to update tag without triggering workflow
+          SHA=$(git rev-parse "$MAJOR")
+          gh api -X PATCH /repos/${{ github.repository }}/git/refs/tags/$MAJOR \
+            -f sha="$SHA" \
+            -F force=true || \
+          gh api -X POST /repos/${{ github.repository }}/git/refs \
+            -f ref="refs/tags/$MAJOR" \
+            -f sha="$SHA"
 
   # ============================================================================
-  # STAGE 9: Publish to crates.io (after release)
+  # STAGE 9: Publish to crates.io (semver tags only)
   # ============================================================================
-  publish-check:
-    name: Check crates.io
-    runs-on: ubuntu-latest
-    needs: [release]
-    if: startsWith(github.ref, 'refs/tags/v')
-    outputs:
-      should_publish: ${{ steps.check.outputs.should_publish }}
-      version: ${{ steps.check.outputs.version }}
-    steps:
-      - uses: actions/checkout@v6
-      - name: Check if version exists
-        id: check
-        run: |
-          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          if cargo search cargo-quality --limit 1 | grep -q "cargo-quality = \"$VERSION\""; then
-            echo "Version $VERSION already exists on crates.io"
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-          else
-            echo "Version $VERSION not found, will publish"
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-          fi
-
   publish:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: [publish-check]
-    if: needs.publish-check.outputs.should_publish == 'true'
+    needs: [changes, release]
+    if: needs.changes.outputs.is_release == 'true'
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Publish
-        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+      - name: Publish to crates.io
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "Checking if cargo-quality@$VERSION exists on crates.io..."
+
+          # Check if already published (with retry for index propagation delay)
+          for i in 1 2 3; do
+            if cargo search cargo-quality --limit 1 2>/dev/null | grep -q "cargo-quality = \"$VERSION\""; then
+              echo "Version $VERSION already published to crates.io, skipping"
+              exit 0
+            fi
+            [ $i -lt 3 ] && sleep 2
+          done
+
+          echo "Publishing cargo-quality@$VERSION to crates.io..."
+          cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
