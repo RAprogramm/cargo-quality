@@ -1,59 +1,57 @@
-<!-- SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com> -->
-<!-- SPDX-License-Identifier: MIT -->
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Miscellaneous
+
+- Bump version to 0.1.1 ([92591f0](https://github.com/RAprogramm/cargo-quality/commit/92591f0662543c9add677a97de6a31209b7ab10f))
+
+## [0] - 2025-11-28
+
 ### Added
-- `diff` command for visualizing proposed changes before applying fixes
-  - Three display modes: summary, full, and interactive
-  - Color-coded output showing old vs new code
-  - Import statements shown separately from code replacements
-- Criterion benchmarks for performance tracking
-  - `format_args_simple`: 160ns baseline
-  - `path_import_simple`: 857ns baseline
-  - Regression >10% triggers CI failure
-- Library crate (`src/lib.rs`) for reusability and benchmarking
-- Fix enum architecture for type-safe fix representation
-  - `Fix::None` - No automatic fix available
-  - `Fix::Simple` - Simple line replacement
-  - `Fix::WithImport` - Import addition with pattern matching
-- Pattern matching for preserving function arguments in replacements
-- Comprehensive doctests for all public API
+
+- Improve PR comment with progress bars and links ([8a661d3](https://github.com/RAprogramm/cargo-quality/commit/8a661d3b5a9f328fa8a58ebf236b21c60392be55))
+
+### CI/CD
+
+- Refactor release pipeline with staged jobs ([30382e6](https://github.com/RAprogramm/cargo-quality/commit/30382e6c8ade8bc9dd380f4dc251d120183e540b))
 
 ### Changed
-- **BREAKING**: `Issue.suggestion: Option<String>` replaced with `Issue.fix: Fix` enum
-- Improved diff display: imports shown on separate lines from replacements
-- Enhanced path_import analyzer to correctly preserve function call arguments
-- Optimized performance with Vec::with_capacity in hot paths
-- Test coverage increased to 86.52% (105 tests, up from 68)
 
-### Fixed
-- Critical bug: path_import now preserves function arguments in replacements
-- Fixed format_args false positives (133 → 5 issues)
-- Changed threshold to 3+ placeholders per RFC 2795
-- CI workflow improvements with sequential jobs and caching
+- Professional PR comment UI with GitHub alerts and collapsible sections ([7a756bd](https://github.com/RAprogramm/cargo-quality/commit/7a756bdcff98dea9ae64fceb3972fe6ab0e594dd))
 
-## [0.1.0] - Initial Release
+### Documentation
 
-### Added
-- Path import analyzer for detecting inline module paths
-- Format args analyzer for detecting positional format arguments
-- Check command for code quality analysis
-- Fix command with dry-run support
-- Format command using cargo +nightly fmt
-- Shell completions support (fish, bash, zsh)
-- Hardcoded quality standards (no configuration files)
-- Professional error handling with masterror
-- Comprehensive test suite (68 tests)
-- MIT license with SPDX headers
-- CI/CD with GitHub Actions
+- Update README with GitHub Action details and PR comment preview ([d9f331e](https://github.com/RAprogramm/cargo-quality/commit/d9f331e73974ead60bcacc3577b3b4ca6f096f2b))
 
-[Unreleased]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.0...HEAD
+## [0.1.0] - 2025-11-25
+
+### CI/CD
+
+- Publish releases without draft ([a5389f8](https://github.com/RAprogramm/cargo-quality/commit/a5389f893fbe922d8956f7f834597c36cbaa470d))
+- Fix changelog job dependencies ([5830f4f](https://github.com/RAprogramm/cargo-quality/commit/5830f4f594b630e1e1a9ac80c01da65c49bc6c6b))
+- Auto-update major version tag on release ([de22c47](https://github.com/RAprogramm/cargo-quality/commit/de22c4723fe3d69454dbd50d24d18298e8db7159))
+- Restrict build job to tag releases only ([8ef7c8a](https://github.com/RAprogramm/cargo-quality/commit/8ef7c8acb47b7c6afaa3590ff4a36ca96571557b))
+- Bump the github-actions group with 4 updates ([34bd9ba](https://github.com/RAprogramm/cargo-quality/commit/34bd9baefdbd5e95a235c4e3cc59ea4f238899f8))
+
+### Changed
+
+- Modular architecture for responsive diff display ([1505540](https://github.com/RAprogramm/cargo-quality/commit/150554095914c28bec382d90aef2ba078cd5f910))
+
+### Miscellaneous
+
+- Update criterion to v0.7.0 ([33a91d2](https://github.com/RAprogramm/cargo-quality/commit/33a91d22f7b29dafd2fbed76cb300c22e8d7aebd))
+
+### Deps
+
+- Bump the rust-dependencies group with 7 updates ([#26](https://github.com/RAprogramm/cargo-quality/issues/26)) ([0523797](https://github.com/RAprogramm/cargo-quality/commit/0523797e9ae1100d2eaa2ea42734ed7861cce35b))
+
+[Unreleased]: https://github.com/RAprogramm/cargo-quality/compare/v0...HEAD
+[0]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.0...v0
 [0.1.0]: https://github.com/RAprogramm/cargo-quality/releases/tag/v0.1.0
+
