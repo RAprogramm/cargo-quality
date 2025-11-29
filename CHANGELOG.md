@@ -14,7 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Update changelog [skip ci] ([ac92b55](https://github.com/RAprogramm/cargo-quality/commit/ac92b55ec169b519b3d43bc08c77a29ac3f226c8))
 - Update changelog [skip ci] ([de61af1](https://github.com/RAprogramm/cargo-quality/commit/de61af10616829cfcfdd594835319128c97ca949))
+
+### Fixed
+
+- Simplify CLI structure for proper cargo subcommand integration ([677130f](https://github.com/RAprogramm/cargo-quality/commit/677130f3492b4843d3b0e702087ee80f3ad61fe4))
 
 ## [0.1.5] - 2025-11-28
 
