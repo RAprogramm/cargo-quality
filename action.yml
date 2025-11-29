@@ -84,7 +84,7 @@ runs:
           ANALYZER_ARG="-a ${{ inputs.analyzer }}"
         fi
 
-        OUTPUT=$(${{ github.action_path }}/target/release/cargo-qual check ${{ inputs.path }} $ANALYZER_ARG 2>&1) || true
+        OUTPUT=$(${{ github.action_path }}/target/release/cargo-qual qual check ${{ inputs.path }} $ANALYZER_ARG 2>&1) || true
 
         echo "Analysis output:"
         echo "$OUTPUT"
