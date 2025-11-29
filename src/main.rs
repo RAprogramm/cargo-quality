@@ -102,8 +102,8 @@ fn generate_completions(shell: Shell) {
     use clap::CommandFactory;
     use clap_complete::{Shell as CompShell, generate};
 
-    let mut cmd = crate::cli::CargoCli::command();
-    let bin_name = "cargo-quality";
+    let mut cmd = QualityArgs::command();
+    let bin_name = "cargo-qual";
 
     let comp_shell = match shell {
         Shell::Bash => CompShell::Bash,
@@ -306,7 +306,7 @@ fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> A
     use clap::CommandFactory;
     use clap_complete::{Shell as CompShell, generate};
 
-    let mut cmd = crate::cli::CargoCli::command();
+    let mut cmd = QualityArgs::command();
     let comp_shell = match shell {
         Shell::Bash => CompShell::Bash,
         Shell::Zsh => CompShell::Zsh,
@@ -314,7 +314,7 @@ fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> A
     };
 
     let mut file = fs::File::create(comp_file).map_err(IoError::from)?;
-    generate(comp_shell, &mut cmd, "cargo-quality", &mut file);
+    generate(comp_shell, &mut cmd, "cargo-qual", &mut file);
     Ok(())
 }
 
