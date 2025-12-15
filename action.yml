@@ -15,7 +15,7 @@ inputs:
     required: false
     default: 'src/'
   analyzer:
-    description: 'Specific analyzer to run (path_import, format_args, empty_lines, inline_comments)'
+    description: 'Specific analyzer to run (path_import, format_args, empty_lines, inline_comments, mod_rs)'
     required: false
     default: ''
   fail_on_issues:
@@ -47,6 +47,9 @@ outputs:
   inline_comments_issues:
     description: 'Issues from inline_comments analyzer'
     value: ${{ steps.analyze.outputs.inline_comments_issues }}
+  mod_rs_issues:
+    description: 'Issues from mod_rs analyzer'
+    value: ${{ steps.analyze.outputs.mod_rs_issues }}
   has_issues:
     description: 'Whether any issues were found'
     value: ${{ steps.analyze.outputs.has_issues }}
@@ -94,6 +97,7 @@ runs:
         FORMAT_ARGS=0
         EMPTY_LINES=0
         INLINE_COMMENTS=0
+        MOD_RS=0
 
         if echo "$OUTPUT" | grep -q "\[path_import\]"; then
           PATH_IMPORT=$(echo "$OUTPUT" | grep -oP '\[path_import\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
@@ -107,14 +111,18 @@ runs:
         if echo "$OUTPUT" | grep -q "\[inline_comments\]"; then
           INLINE_COMMENTS=$(echo "$OUTPUT" | grep -oP '\[inline_comments\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
         fi
+        if echo "$OUTPUT" | grep -q "\[mod_rs\]"; then
+          MOD_RS=$(echo "$OUTPUT" | grep -oP '\[mod_rs\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
+        fi
 
-        TOTAL=$((PATH_IMPORT + FORMAT_ARGS + EMPTY_LINES + INLINE_COMMENTS))
+        TOTAL=$((PATH_IMPORT + FORMAT_ARGS + EMPTY_LINES + INLINE_COMMENTS + MOD_RS))
 
         echo "total_issues=$TOTAL" >> $GITHUB_OUTPUT
         echo "path_import_issues=$PATH_IMPORT" >> $GITHUB_OUTPUT
         echo "format_args_issues=$FORMAT_ARGS" >> $GITHUB_OUTPUT
         echo "empty_lines_issues=$EMPTY_LINES" >> $GITHUB_OUTPUT
         echo "inline_comments_issues=$INLINE_COMMENTS" >> $GITHUB_OUTPUT
+        echo "mod_rs_issues=$MOD_RS" >> $GITHUB_OUTPUT
 
         if [ "$TOTAL" -gt 0 ]; then
           echo "has_issues=true" >> $GITHUB_OUTPUT
@@ -145,6 +153,7 @@ runs:
         FORMAT_ARGS=${{ steps.analyze.outputs.format_args_issues }}
         EMPTY_LINES=${{ steps.analyze.outputs.empty_lines_issues }}
         INLINE_COMMENTS=${{ steps.analyze.outputs.inline_comments_issues }}
+        MOD_RS=${{ steps.analyze.outputs.mod_rs_issues }}
 
         # Build verdict section
         if [ "$TOTAL" -eq 0 ]; then
@@ -166,6 +175,7 @@ runs:
         STATUS_FORMAT=$(get_status $FORMAT_ARGS)
         STATUS_EMPTY=$(get_status $EMPTY_LINES)
         STATUS_INLINE=$(get_status $INLINE_COMMENTS)
+        STATUS_MOD_RS=$(get_status $MOD_RS)
 
         # Build comment with professional UI
         COMMENT="$MARKER
@@ -184,6 +194,7 @@ runs:
         | \`format_args\` | $FORMAT_ARGS | $STATUS_FORMAT |
         | \`empty_lines\` | $EMPTY_LINES | $STATUS_EMPTY |
         | \`inline_comments\` | $INLINE_COMMENTS | $STATUS_INLINE |
+        | \`mod_rs\` | $MOD_RS | $STATUS_MOD_RS |
         | **Total** | **$TOTAL** | |
 
         </details>
@@ -199,6 +210,7 @@ runs:
         | \`format_args\` | Detects \`format!(\"{}\", x)\` patterns | Use \`format!(\"{x}\")\` syntax |
         | \`empty_lines\` | Detects empty lines inside function bodies | Remove extra blank lines |
         | \`inline_comments\` | Detects \`// comment\` inside functions | Move to doc comments or remove |
+        | \`mod_rs\` | Detects \`mod.rs\` files (use modern module style) | Rename \`foo/mod.rs\` to \`foo.rs\` |
 
         </details>
 

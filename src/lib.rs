@@ -118,4 +118,5 @@ pub mod differ;
 pub mod error;
 pub mod file_utils;
 pub mod formatter;
+pub mod mod_rs;
 pub mod report;

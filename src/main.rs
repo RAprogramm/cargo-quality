@@ -26,11 +26,13 @@ use std::{fs, path::PathBuf};
 use masterror::AppResult;
 
 use crate::{
+    analyzer::{AnalysisResult, Fix, Issue},
     analyzers::get_analyzers,
     cli::{Command, QualityArgs, Shell},
     differ::{DiffResult, generate_diff, show_full, show_interactive, show_summary},
     error::{IoError, ParseError},
     file_utils::collect_rust_files,
+    mod_rs::{ModRsResult, find_mod_rs_issues, fix_all_mod_rs},
     report::{GlobalReport, Report}
 };
 
@@ -42,6 +44,7 @@ mod error;
 mod file_utils;
 mod formatter;
 mod help;
+mod mod_rs;
 mod report;
 
 fn main() -> AppResult<()> {
@@ -359,7 +362,7 @@ fn check_quality(
         all_analyzers
     };
 
-    if analyzers.is_empty() && analyzer_name.is_some() {
+    if analyzers.is_empty() && analyzer_name.is_some() && analyzer_name != Some("mod_rs") {
         eprintln!(
             "Unknown analyzer: {}. Available analyzers:",
             analyzer_name.unwrap()
@@ -367,24 +370,35 @@ fn check_quality(
         for analyzer in get_analyzers() {
             eprintln!("  - {}", analyzer.name());
         }
+        eprintln!("  - mod_rs");
         return Ok(());
     }
 
     let mut global_report = GlobalReport::new();
 
-    for file_path in files {
-        let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
-        let ast = syn::parse_file(&content).map_err(ParseError::from)?;
-
-        let mut report = Report::new(file_path.display().to_string());
-
-        for analyzer in &analyzers {
-            let result = analyzer.analyze(&ast, &content)?;
-            report.add_result(analyzer.name().to_string(), result);
+    let should_check_mod_rs = analyzer_name.is_none() || analyzer_name == Some("mod_rs");
+    if should_check_mod_rs {
+        let mod_rs_result = find_mod_rs_issues(path)?;
+        if !mod_rs_result.is_empty() {
+            add_mod_rs_to_report(&mod_rs_result, &mut global_report);
         }
+    }
 
-        if report.total_issues() > 0 || verbose {
-            global_report.add_report(report);
+    if analyzer_name != Some("mod_rs") {
+        for file_path in files {
+            let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
+            let ast = syn::parse_file(&content).map_err(ParseError::from)?;
+
+            let mut report = Report::new(file_path.display().to_string());
+
+            for analyzer in &analyzers {
+                let result = analyzer.analyze(&ast, &content)?;
+                report.add_result(analyzer.name().to_string(), result);
+            }
+
+            if report.total_issues() > 0 || verbose {
+                global_report.add_report(report);
+            }
         }
     }
 
@@ -401,6 +415,33 @@ fn check_quality(
     }
 
     Ok(())
+}
+
+/// Adds mod.rs issues to the global report.
+///
+/// Converts ModRsResult into Report format for unified display.
+///
+/// # Arguments
+///
+/// * `mod_rs_result` - Result from mod_rs analysis
+/// * `global_report` - Global report to add issues to
+fn add_mod_rs_to_report(mod_rs_result: &ModRsResult, global_report: &mut GlobalReport) {
+    for issue in &mod_rs_result.issues {
+        let mut report = Report::new(issue.path.display().to_string());
+
+        let analysis_result = AnalysisResult {
+            issues:        vec![Issue {
+                line:    issue.line,
+                column:  issue.column,
+                message: issue.message.clone(),
+                fix:     Fix::Simple(issue.suggested.display().to_string())
+            }],
+            fixable_count: 1
+        };
+
+        report.add_result("mod_rs".to_string(), analysis_result);
+        global_report.add_report(report);
+    }
 }
 
 /// Fix quality issues automatically.
@@ -428,7 +469,6 @@ fn check_quality(
 /// fix_quality("src/", false, Some("path_import")).unwrap();
 /// ```
 fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppResult<()> {
-    let files = collect_rust_files(path)?;
     let all_analyzers = get_analyzers();
 
     let analyzers: Vec<_> = if let Some(name) = analyzer_name {
@@ -440,7 +480,7 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
         all_analyzers
     };
 
-    if analyzers.is_empty() && analyzer_name.is_some() {
+    if analyzers.is_empty() && analyzer_name.is_some() && analyzer_name != Some("mod_rs") {
         eprintln!(
             "Unknown analyzer: {}. Available analyzers:",
             analyzer_name.unwrap()
@@ -448,26 +488,51 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
         for analyzer in get_analyzers() {
             eprintln!("  - {}", analyzer.name());
         }
+        eprintln!("  - mod_rs");
         return Ok(());
     }
 
-    for file_path in files {
-        let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
-        let mut ast = syn::parse_file(&content).map_err(ParseError::from)?;
-
-        let mut total_fixed = 0;
-
-        for analyzer in &analyzers {
-            let fixed = analyzer.fix(&mut ast)?;
-            total_fixed += fixed;
+    let should_fix_mod_rs = analyzer_name.is_none() || analyzer_name == Some("mod_rs");
+    if should_fix_mod_rs {
+        let mod_rs_result = find_mod_rs_issues(path)?;
+        if !mod_rs_result.is_empty() {
+            if dry_run {
+                for issue in &mod_rs_result.issues {
+                    println!(
+                        "Would fix: {} -> {}",
+                        issue.path.display(),
+                        issue.suggested.display()
+                    );
+                }
+            } else {
+                let fixed = fix_all_mod_rs(path)?;
+                if fixed > 0 {
+                    println!("Fixed {} mod.rs files", fixed);
+                }
+            }
         }
+    }
 
-        if total_fixed > 0 {
-            println!("Fixed {} issues in {}", total_fixed, file_path.display());
+    if analyzer_name != Some("mod_rs") {
+        let files = collect_rust_files(path)?;
+        for file_path in files {
+            let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
+            let mut ast = syn::parse_file(&content).map_err(ParseError::from)?;
 
-            if !dry_run {
-                let formatted = prettyplease::unparse(&ast);
-                fs::write(&file_path, formatted).map_err(IoError::from)?;
+            let mut total_fixed = 0;
+
+            for analyzer in &analyzers {
+                let fixed = analyzer.fix(&mut ast)?;
+                total_fixed += fixed;
+            }
+
+            if total_fixed > 0 {
+                println!("Fixed {} issues in {}", total_fixed, file_path.display());
+
+                if !dry_run {
+                    let formatted = prettyplease::unparse(&ast);
+                    fs::write(&file_path, formatted).map_err(IoError::from)?;
+                }
             }
         }
     }
