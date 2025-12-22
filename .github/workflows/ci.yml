@@ -310,7 +310,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           Compress-Archive -Path cargo-qual.exe -DestinationPath ../../../cargo-qual-${{ matrix.target }}.zip
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: cargo-qual-${{ matrix.target }}
           path: cargo-qual-${{ matrix.target }}.${{ matrix.archive }}
@@ -368,7 +368,7 @@ jobs:
         env:
           OUTPUT: RELEASE_NOTES.md
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
 
