@@ -347,7 +347,11 @@ fn run_mod_rs(path: &str, fix: bool) -> AppResult<()> {
     } else {
         println!("Found {} mod.rs files:", result.len());
         for issue in &result.issues {
-            println!("  {} -> {}", issue.path.display(), issue.suggested.display());
+            println!(
+                "  {} -> {}",
+                issue.path.display(),
+                issue.suggested.display()
+            );
         }
         println!("\nRun with --fix to apply changes");
     }
@@ -396,11 +400,11 @@ fn check_quality(
         all_analyzers
     };
 
-    if analyzers.is_empty() && analyzer_name.is_some() && analyzer_name != Some("mod_rs") {
-        eprintln!(
-            "Unknown analyzer: {}. Available analyzers:",
-            analyzer_name.unwrap()
-        );
+    if let Some(name) = analyzer_name
+        && analyzers.is_empty()
+        && name != "mod_rs"
+    {
+        eprintln!("Unknown analyzer: {}. Available analyzers:", name);
         for analyzer in get_analyzers() {
             eprintln!("  - {}", analyzer.name());
         }
@@ -514,11 +518,11 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
         all_analyzers
     };
 
-    if analyzers.is_empty() && analyzer_name.is_some() && analyzer_name != Some("mod_rs") {
-        eprintln!(
-            "Unknown analyzer: {}. Available analyzers:",
-            analyzer_name.unwrap()
-        );
+    if let Some(name) = analyzer_name
+        && analyzers.is_empty()
+        && name != "mod_rs"
+    {
+        eprintln!("Unknown analyzer: {}. Available analyzers:", name);
         for analyzer in get_analyzers() {
             eprintln!("  - {}", analyzer.name());
         }
@@ -634,11 +638,10 @@ fn run_diff(
         all_analyzers
     };
 
-    if analyzers.is_empty() && analyzer_name.is_some() {
-        eprintln!(
-            "Unknown analyzer: {}. Available analyzers:",
-            analyzer_name.unwrap()
-        );
+    if let Some(name) = analyzer_name
+        && analyzers.is_empty()
+    {
+        eprintln!("Unknown analyzer: {}. Available analyzers:", name);
         for analyzer in get_analyzers() {
             eprintln!("  - {}", analyzer.name());
         }
