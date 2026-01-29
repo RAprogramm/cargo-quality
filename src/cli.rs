@@ -112,7 +112,18 @@ pub enum Command {
     },
 
     /// Setup shell completions automatically
-    Setup
+    Setup,
+
+    /// Find and fix mod.rs files (convert to modern module style)
+    ModRs {
+        /// Path to analyze (default: current directory)
+        #[arg(default_value = ".")]
+        path: String,
+
+        /// Apply fixes automatically
+        #[arg(long)]
+        fix: bool
+    }
 }
 
 /// Supported shells for completion generation

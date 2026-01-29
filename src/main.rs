@@ -89,6 +89,10 @@ fn main() -> AppResult<()> {
             setup_completions()?;
             return Ok(());
         }
+        Command::ModRs {
+            path,
+            fix
+        } => run_mod_rs(&path, fix)?
     }
 
     Ok(())
@@ -318,6 +322,36 @@ fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> A
 
     let mut file = fs::File::create(comp_file).map_err(IoError::from)?;
     generate(comp_shell, &mut cmd, "cargo-qual", &mut file);
+    Ok(())
+}
+
+/// Run mod.rs analyzer.
+///
+/// Finds mod.rs files and optionally fixes them.
+///
+/// # Arguments
+///
+/// * `path` - Path to analyze
+/// * `fix` - Apply fixes automatically
+fn run_mod_rs(path: &str, fix: bool) -> AppResult<()> {
+    let result = find_mod_rs_issues(path)?;
+
+    if result.is_empty() {
+        println!("No mod.rs files found");
+        return Ok(());
+    }
+
+    if fix {
+        let fixed = fix_all_mod_rs(path)?;
+        println!("Fixed {} mod.rs files", fixed);
+    } else {
+        println!("Found {} mod.rs files:", result.len());
+        for issue in &result.issues {
+            println!("  {} -> {}", issue.path.display(), issue.suggested.display());
+        }
+        println!("\nRun with --fix to apply changes");
+    }
+
     Ok(())
 }
 

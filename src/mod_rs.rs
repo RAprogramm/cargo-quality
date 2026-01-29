@@ -18,7 +18,7 @@
 //! directory, placed one level up in the directory hierarchy.
 
 use std::{
-    fs,
+    fs::{read_dir, remove_dir as remove_directory, rename},
     path::{Path, PathBuf}
 };
 
@@ -119,7 +119,7 @@ pub fn find_mod_rs_issues(path: &str) -> AppResult<ModRsResult> {
 /// * `dir` - Directory to search in
 /// * `result` - Result accumulator
 fn collect_mod_rs_recursive(dir: &Path, result: &mut ModRsResult) -> AppResult<()> {
-    let entries = fs::read_dir(dir).map_err(IoError::from)?;
+    let entries = read_dir(dir).map_err(IoError::from)?;
 
     for entry in entries {
         let entry = entry.map_err(IoError::from)?;
@@ -209,18 +209,12 @@ fn create_issue(path: &Path) -> Option<ModRsIssue> {
 /// }
 /// ```
 pub fn fix_mod_rs(issue: &ModRsIssue) -> AppResult<()> {
-    let content = fs::read_to_string(&issue.path).map_err(IoError::from)?;
-
-    fs::write(&issue.suggested, content).map_err(IoError::from)?;
-
-    fs::remove_file(&issue.path).map_err(IoError::from)?;
-
+    rename(&issue.path, &issue.suggested).map_err(IoError::from)?;
     if let Some(parent) = issue.path.parent()
         && is_directory_empty(parent)?
     {
-        fs::remove_dir(parent).map_err(IoError::from)?;
+        remove_directory(parent).map_err(IoError::from)?;
     }
-
     Ok(())
 }
 
@@ -263,12 +257,14 @@ pub fn fix_all_mod_rs(path: &str) -> AppResult<usize> {
 ///
 /// `AppResult<bool>` - true if directory has no entries
 fn is_directory_empty(dir: &Path) -> AppResult<bool> {
-    let mut entries = fs::read_dir(dir).map_err(IoError::from)?;
+    let mut entries = read_dir(dir).map_err(IoError::from)?;
     Ok(entries.next().is_none())
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fs::{create_dir, read_to_string, write};
+
     use tempfile::TempDir;
 
     use super::*;
@@ -277,7 +273,7 @@ mod tests {
     fn test_find_no_mod_rs() {
         let temp = TempDir::new().unwrap();
         let file = temp.path().join("lib.rs");
-        fs::write(&file, "fn main() {}").unwrap();
+        write(&file, "fn main() {}").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert!(result.is_empty());
@@ -287,9 +283,9 @@ mod tests {
     fn test_find_mod_rs() {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("analyzers");
-        fs::create_dir(&subdir).unwrap();
+        create_dir(&subdir).unwrap();
         let mod_rs = subdir.join("mod.rs");
-        fs::write(&mod_rs, "pub mod test;").unwrap();
+        write(&mod_rs, "pub mod test;").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 1);
@@ -301,12 +297,12 @@ mod tests {
         let temp = TempDir::new().unwrap();
 
         let dir1 = temp.path().join("foo");
-        fs::create_dir(&dir1).unwrap();
-        fs::write(dir1.join("mod.rs"), "// foo").unwrap();
+        create_dir(&dir1).unwrap();
+        write(dir1.join("mod.rs"), "// foo").unwrap();
 
         let dir2 = temp.path().join("bar");
-        fs::create_dir(&dir2).unwrap();
-        fs::write(dir2.join("mod.rs"), "// bar").unwrap();
+        create_dir(&dir2).unwrap();
+        write(dir2.join("mod.rs"), "// bar").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 2);
@@ -316,9 +312,9 @@ mod tests {
     fn test_fix_mod_rs() {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("utils");
-        fs::create_dir(&subdir).unwrap();
+        create_dir(&subdir).unwrap();
         let mod_rs = subdir.join("mod.rs");
-        fs::write(&mod_rs, "pub fn helper() {}").unwrap();
+        write(&mod_rs, "pub fn helper() {}").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 1);
@@ -328,7 +324,7 @@ mod tests {
         assert!(!mod_rs.exists());
         let new_file = temp.path().join("utils.rs");
         assert!(new_file.exists());
-        assert_eq!(fs::read_to_string(&new_file).unwrap(), "pub fn helper() {}");
+        assert_eq!(read_to_string(&new_file).unwrap(), "pub fn helper() {}");
         assert!(!subdir.exists());
     }
 
@@ -336,9 +332,9 @@ mod tests {
     fn test_fix_mod_rs_keeps_dir_with_other_files() {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("services");
-        fs::create_dir(&subdir).unwrap();
-        fs::write(subdir.join("mod.rs"), "pub mod api;").unwrap();
-        fs::write(subdir.join("api.rs"), "fn api() {}").unwrap();
+        create_dir(&subdir).unwrap();
+        write(subdir.join("mod.rs"), "pub mod api;").unwrap();
+        write(subdir.join("api.rs"), "fn api() {}").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         fix_mod_rs(&result.issues[0]).unwrap();
@@ -353,12 +349,12 @@ mod tests {
         let temp = TempDir::new().unwrap();
 
         let dir1 = temp.path().join("module1");
-        fs::create_dir(&dir1).unwrap();
-        fs::write(dir1.join("mod.rs"), "// 1").unwrap();
+        create_dir(&dir1).unwrap();
+        write(dir1.join("mod.rs"), "// 1").unwrap();
 
         let dir2 = temp.path().join("module2");
-        fs::create_dir(&dir2).unwrap();
-        fs::write(dir2.join("mod.rs"), "// 2").unwrap();
+        create_dir(&dir2).unwrap();
+        write(dir2.join("mod.rs"), "// 2").unwrap();
 
         let fixed = fix_all_mod_rs(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(fixed, 2);
@@ -371,8 +367,8 @@ mod tests {
     fn test_issue_message() {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("handlers");
-        fs::create_dir(&subdir).unwrap();
-        fs::write(subdir.join("mod.rs"), "").unwrap();
+        create_dir(&subdir).unwrap();
+        write(subdir.join("mod.rs"), "").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert!(result.issues[0].message.contains("handlers.rs"));
@@ -383,8 +379,8 @@ mod tests {
     fn test_suggested_path() {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("core");
-        fs::create_dir(&subdir).unwrap();
-        fs::write(subdir.join("mod.rs"), "").unwrap();
+        create_dir(&subdir).unwrap();
+        write(subdir.join("mod.rs"), "").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.issues[0].suggested, temp.path().join("core.rs"));
@@ -395,8 +391,9 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let level1 = temp.path().join("level1");
         let level2 = level1.join("level2");
-        fs::create_dir_all(&level2).unwrap();
-        fs::write(level2.join("mod.rs"), "// nested").unwrap();
+        create_dir(&level1).unwrap();
+        create_dir(&level2).unwrap();
+        write(level2.join("mod.rs"), "// nested").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 1);
@@ -408,9 +405,9 @@ mod tests {
     fn test_single_file_check() {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("single");
-        fs::create_dir(&subdir).unwrap();
+        create_dir(&subdir).unwrap();
         let mod_rs = subdir.join("mod.rs");
-        fs::write(&mod_rs, "").unwrap();
+        write(&mod_rs, "").unwrap();
 
         let result = find_mod_rs_issues(mod_rs.to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 1);
@@ -420,7 +417,7 @@ mod tests {
     fn test_non_mod_rs_file() {
         let temp = TempDir::new().unwrap();
         let file = temp.path().join("lib.rs");
-        fs::write(&file, "fn main() {}").unwrap();
+        write(&file, "fn main() {}").unwrap();
 
         let result = find_mod_rs_issues(file.to_str().unwrap()).unwrap();
         assert!(result.is_empty());
@@ -430,8 +427,8 @@ mod tests {
     fn test_line_column() {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("pos");
-        fs::create_dir(&subdir).unwrap();
-        fs::write(subdir.join("mod.rs"), "").unwrap();
+        create_dir(&subdir).unwrap();
+        write(subdir.join("mod.rs"), "").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.issues[0].line, 1);
