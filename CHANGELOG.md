@@ -12,14 +12,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add mod-rs subcommand for direct module style conversion ([1db63a5](https://github.com/RAprogramm/cargo-quality/commit/1db63a5991e5adc49cc61e766fb706daf3dcd3e2))
+- Add mod_rs analyzer for detecting legacy module style ([083cf10](https://github.com/RAprogramm/cargo-quality/commit/083cf100ec9ddcce78f411f447672ec68a8801cf))
+
+### CI/CD
+
+- Add nightly toolchain to test job for format_code test ([ad47a85](https://github.com/RAprogramm/cargo-quality/commit/ad47a858906e167069da87fa12c5d8e031072626))
+- Bump the github-actions group with 3 updates ([#34](https://github.com/RAprogramm/cargo-quality/issues/34)) ([e5aba1e](https://github.com/RAprogramm/cargo-quality/commit/e5aba1ed9454192be726137bb0d563887db85a9a))
+
 ### Documentation
 
+- Update changelog [skip ci] ([bf0468f](https://github.com/RAprogramm/cargo-quality/commit/bf0468fc93207c49dab6a1de7c18316a08772085))
 - Update changelog [skip ci] ([ac92b55](https://github.com/RAprogramm/cargo-quality/commit/ac92b55ec169b519b3d43bc08c77a29ac3f226c8))
 - Update changelog [skip ci] ([de61af1](https://github.com/RAprogramm/cargo-quality/commit/de61af10616829cfcfdd594835319128c97ca949))
 
 ### Fixed
 
+- Resolve clippy unnecessary_unwrap warnings ([bc2efd2](https://github.com/RAprogramm/cargo-quality/commit/bc2efd22ba6c737800a310892c3168d92e768c96))
 - Simplify CLI structure for proper cargo subcommand integration ([677130f](https://github.com/RAprogramm/cargo-quality/commit/677130f3492b4843d3b0e702087ee80f3ad61fe4))
+
+### Testing
+
+- Ignore format_code_execution test that hangs in CI ([b724dff](https://github.com/RAprogramm/cargo-quality/commit/b724dff76447a3c80f47ac4cbb660ec3909a629d))
+
+### Deps
+
+- Bump the rust-dependencies group with 2 updates ([#39](https://github.com/RAprogramm/cargo-quality/issues/39)) ([127c58c](https://github.com/RAprogramm/cargo-quality/commit/127c58c14de82e6d84583d89c379cd5ac24251c2))
+- Bump the rust-dependencies group with 4 updates ([#38](https://github.com/RAprogramm/cargo-quality/issues/38)) ([4c1b5ca](https://github.com/RAprogramm/cargo-quality/commit/4c1b5ca8ec48339a7e632bee338e8a3b6344b986))
+- Bump the rust-dependencies group with 3 updates ([#37](https://github.com/RAprogramm/cargo-quality/issues/37)) ([74c3202](https://github.com/RAprogramm/cargo-quality/commit/74c32025c396710211b8490f9966f2a919509e94))
+- Bump the rust-dependencies group with 2 updates ([#36](https://github.com/RAprogramm/cargo-quality/issues/36)) ([ba71e59](https://github.com/RAprogramm/cargo-quality/commit/ba71e594c6ee71666220df1fbe9e8cc2be6aecc1))
+- Bump the rust-dependencies group with 2 updates ([#35](https://github.com/RAprogramm/cargo-quality/issues/35)) ([54a983a](https://github.com/RAprogramm/cargo-quality/commit/54a983a32651ae5e48af4eeca104b207ff225843))
+- Bump criterion from 0.8.0 to 0.8.1 in the rust-dependencies group ([#33](https://github.com/RAprogramm/cargo-quality/issues/33)) ([09b803c](https://github.com/RAprogramm/cargo-quality/commit/09b803cab090add730f7742d5eec3bb8949ac250))
+- Bump criterion from 0.7.0 to 0.8.0 in the rust-dependencies group ([#32](https://github.com/RAprogramm/cargo-quality/issues/32)) ([be3b7ff](https://github.com/RAprogramm/cargo-quality/commit/be3b7ffff765ebefa4db8af5b60acd03756082c4))
 
 ## [0.1.5] - 2025-11-28
 
