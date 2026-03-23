@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -313,7 +313,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           Compress-Archive -Path cargo-qual.exe -DestinationPath ../../../cargo-qual-${{ matrix.target }}.zip
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: cargo-qual-${{ matrix.target }}
           path: cargo-qual-${{ matrix.target }}.${{ matrix.archive }}
@@ -371,7 +371,7 @@ jobs:
         env:
           OUTPUT: RELEASE_NOTES.md
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
 
