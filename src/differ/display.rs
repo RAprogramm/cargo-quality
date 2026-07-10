@@ -55,7 +55,7 @@ pub use self::{
     grid::{calculate_columns, render_grid},
     render::render_file_block
 };
-use super::types::{DiffEntry, DiffResult};
+use super::types::{DiffResult, FileDiff};
 use crate::error::IoError;
 
 /// Displays diff in summary mode with brief statistics.
@@ -239,7 +239,7 @@ pub fn show_full(result: &DiffResult, color: bool) {
 ///
 /// # Returns
 ///
-/// `AppResult<Vec<DiffEntry>>` - Selected entries for application, or error
+/// `AppResult<DiffResult>` - Selected entries grouped by file, or error
 ///
 /// # Errors
 ///
@@ -252,10 +252,10 @@ pub fn show_full(result: &DiffResult, color: bool) {
 ///
 /// let result = DiffResult::new();
 /// let selected = show_interactive(&result, false).unwrap();
-/// println!("Selected {} changes", selected.len());
+/// println!("Selected {} changes", selected.total_changes());
 /// ```
-pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffEntry>> {
-    let mut selected = Vec::with_capacity(result.total_changes());
+pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<DiffResult> {
+    let mut selected = DiffResult::new();
     let mut apply_all = false;
 
     if color {
@@ -273,6 +273,8 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffE
             println!("File: {}", file.path);
         }
         println!();
+
+        let mut file_selected = FileDiff::new(file.path.clone());
 
         for (idx, entry) in file.entries.iter().enumerate() {
             if color {
@@ -303,7 +305,7 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffE
             println!();
 
             if apply_all {
-                selected.push(entry.clone());
+                file_selected.add_entry(entry.clone());
                 continue;
             }
 
@@ -315,7 +317,7 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffE
 
             match input.trim().to_lowercase().as_str() {
                 "y" | "yes" => {
-                    selected.push(entry.clone());
+                    file_selected.add_entry(entry.clone());
                     println!("{}", "Applied".green());
                 }
                 "n" | "no" => {
@@ -323,12 +325,22 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffE
                 }
                 "a" | "all" => {
                     apply_all = true;
-                    selected.push(entry.clone());
+                    file_selected.add_entry(entry.clone());
                     println!("{}", "Applying all remaining changes".green().bold());
                 }
                 "q" | "quit" => {
                     println!("{}", "Quit".red());
-                    break;
+                    selected.add_file(file_selected);
+                    println!(
+                        "\n{}",
+                        format!(
+                            "Selected {} changes for application",
+                            selected.total_changes()
+                        )
+                        .yellow()
+                        .bold()
+                    );
+                    return Ok(selected);
                 }
                 _ => {
                     println!("{}", "Invalid input, skipping".red());
@@ -336,13 +348,18 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffE
             }
             println!();
         }
+
+        selected.add_file(file_selected);
     }
 
     println!(
         "\n{}",
-        format!("Selected {} changes for application", selected.len())
-            .yellow()
-            .bold()
+        format!(
+            "Selected {} changes for application",
+            selected.total_changes()
+        )
+        .yellow()
+        .bold()
     );
 
     Ok(selected)
@@ -351,7 +368,7 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<Vec<DiffE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::differ::types::FileDiff;
+    use crate::differ::types::DiffEntry;
 
     #[test]
     fn test_show_summary_empty() {
