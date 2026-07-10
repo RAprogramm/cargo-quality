@@ -53,11 +53,9 @@ impl Analyzer for FormatArgsAnalyzer {
         };
         syn::visit::visit_file(&mut visitor, ast);
 
-        let fixable_count = visitor.issues.len();
-
         Ok(AnalysisResult {
-            issues: visitor.issues,
-            fixable_count
+            issues:        visitor.issues,
+            fixable_count: 0
         })
     }
 
@@ -127,6 +125,21 @@ mod tests {
 
         let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
+    }
+
+    #[test]
+    fn test_advisory_only_not_fixable() {
+        let analyzer = FormatArgsAnalyzer::new();
+        let code: File = parse_quote! {
+            fn main() {
+                println!("Values: {} {} {}", 1, 2, 3);
+            }
+        };
+
+        let result = analyzer.analyze(&code, "").unwrap();
+        assert!(!result.issues.is_empty());
+        assert_eq!(result.fixable_count, 0);
+        assert!(!result.issues[0].fix.is_available());
     }
 
     #[test]
