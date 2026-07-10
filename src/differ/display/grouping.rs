@@ -96,34 +96,30 @@ pub fn group_imports(imports: &[&str]) -> Vec<String> {
 
             let common_prefix = find_common_prefix(&paths);
 
-            if !common_prefix.is_empty() {
-                let prefix_with_sep = if paths[0].starts_with(&format!("{}::", common_prefix)) {
-                    format!("{}::", common_prefix)
-                } else {
-                    common_prefix.clone()
-                };
+            if common_prefix.is_empty() {
+                result.push(format!("use {}::{{{}}};", root, paths.join(", ")));
+            } else {
+                let prefix_with_sep = format!("{}::", common_prefix);
 
                 let suffixes: Vec<String> = paths
                     .iter()
                     .map(|p| {
-                        p.strip_prefix(&prefix_with_sep)
-                            .unwrap_or(p.as_str())
-                            .to_string()
+                        if *p == common_prefix {
+                            "self".to_string()
+                        } else {
+                            p.strip_prefix(&prefix_with_sep)
+                                .unwrap_or(p.as_str())
+                                .to_string()
+                        }
                     })
                     .collect();
 
-                if prefix_with_sep.ends_with("::") {
-                    result.push(format!(
-                        "use {}::{}::{{{}}};",
-                        root,
-                        common_prefix,
-                        suffixes.join(", ")
-                    ));
-                } else {
-                    result.push(format!("use {}::{{{}}};", root, suffixes.join(", ")));
-                }
-            } else {
-                result.push(format!("use {}::{{{}}};", root, paths.join(", ")));
+                result.push(format!(
+                    "use {}::{}::{{{}}};",
+                    root,
+                    common_prefix,
+                    suffixes.join(", ")
+                ));
             }
         }
     }
@@ -289,6 +285,14 @@ mod tests {
         let result = group_imports(&imports);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "use std::fs::write;");
+    }
+
+    #[test]
+    fn test_group_imports_bare_root_and_subpath() {
+        let imports = vec!["use std::fs;", "use std::fs::read;"];
+        let result = group_imports(&imports);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "use std::fs::{self, read};");
     }
 
     #[test]
