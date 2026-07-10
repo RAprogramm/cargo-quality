@@ -58,19 +58,17 @@ impl InlineCommentsAnalyzer {
     ///
     /// * `start_line` - First line of function body
     /// * `end_line` - Last line of function body
-    /// * `content` - Source code content
+    /// * `lines` - Source code split into lines
     ///
     /// # Returns
     ///
     /// Vector of issues found
-    fn check_block(start_line: usize, end_line: usize, content: &str) -> Vec<Issue> {
+    fn check_block(start_line: usize, end_line: usize, lines: &[&str]) -> Vec<Issue> {
         let mut issues = Vec::new();
 
         if start_line >= end_line {
             return issues;
         }
-
-        let lines: Vec<&str> = content.lines().collect();
 
         for line_num in start_line..end_line {
             let idx = line_num.saturating_sub(1);
@@ -84,7 +82,7 @@ impl InlineCommentsAnalyzer {
             if trimmed.starts_with("//") && !trimmed.starts_with("///") {
                 let comment_text = trimmed.trim_start_matches("//").trim();
 
-                let code_line = Self::find_related_code_line(&lines, idx);
+                let code_line = Self::find_related_code_line(lines, idx);
 
                 let suggestion = if let Some((_code_idx, code)) = code_line {
                     format!(
@@ -144,13 +142,13 @@ impl InlineCommentsAnalyzer {
     /// # Arguments
     ///
     /// * `func` - Function item to analyze
-    /// * `content` - Source code content
-    fn check_function(func: &ItemFn, content: &str) -> Vec<Issue> {
+    /// * `lines` - Source code split into lines
+    fn check_function(func: &ItemFn, lines: &[&str]) -> Vec<Issue> {
         let span = func.block.span();
         let start_line = span.start().line;
         let end_line = span.end().line;
 
-        Self::check_block(start_line, end_line, content)
+        Self::check_block(start_line, end_line, lines)
     }
 
     /// Check impl block methods for inline comments.
@@ -158,8 +156,8 @@ impl InlineCommentsAnalyzer {
     /// # Arguments
     ///
     /// * `impl_block` - Impl block to analyze
-    /// * `content` - Source code content
-    fn check_impl_block(impl_block: &ItemImpl, content: &str) -> Vec<Issue> {
+    /// * `lines` - Source code split into lines
+    fn check_impl_block(impl_block: &ItemImpl, lines: &[&str]) -> Vec<Issue> {
         let mut issues = Vec::new();
 
         for item in &impl_block.items {
@@ -168,7 +166,7 @@ impl InlineCommentsAnalyzer {
                 let start_line = span.start().line;
                 let end_line = span.end().line;
 
-                issues.extend(Self::check_block(start_line, end_line, content));
+                issues.extend(Self::check_block(start_line, end_line, lines));
             }
         }
 
@@ -182,9 +180,10 @@ impl Analyzer for InlineCommentsAnalyzer {
     }
 
     fn analyze(&self, ast: &File, content: &str) -> AppResult<AnalysisResult> {
+        let lines: Vec<&str> = content.lines().collect();
         let mut visitor = FunctionVisitor {
-            issues:  Vec::new(),
-            content: content.to_string()
+            issues: Vec::new(),
+            lines:  &lines
         };
         visitor.visit_file(ast);
 
@@ -199,21 +198,20 @@ impl Analyzer for InlineCommentsAnalyzer {
     }
 }
 
-struct FunctionVisitor {
-    issues:  Vec<Issue>,
-    content: String
+struct FunctionVisitor<'a> {
+    issues: Vec<Issue>,
+    lines:  &'a [&'a str]
 }
 
-impl<'ast> Visit<'ast> for FunctionVisitor {
+impl<'ast, 'a> Visit<'ast> for FunctionVisitor<'a> {
     fn visit_item(&mut self, node: &'ast Item) {
         match node {
             Item::Fn(func) => {
-                let func_issues = InlineCommentsAnalyzer::check_function(func, &self.content);
+                let func_issues = InlineCommentsAnalyzer::check_function(func, self.lines);
                 self.issues.extend(func_issues);
             }
             Item::Impl(impl_block) => {
-                let impl_issues =
-                    InlineCommentsAnalyzer::check_impl_block(impl_block, &self.content);
+                let impl_issues = InlineCommentsAnalyzer::check_impl_block(impl_block, self.lines);
                 self.issues.extend(impl_issues);
             }
             _ => {}
