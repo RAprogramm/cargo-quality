@@ -50,6 +50,8 @@ pub fn collect_rust_files(path: &str) -> AppResult<Vec<PathBuf>> {
         }
     }
 
+    files.sort();
+
     Ok(files)
 }
 
@@ -114,6 +116,26 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let result = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_collect_rust_files_sorted() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("zebra.rs"), "fn z() {}").unwrap();
+        fs::write(temp_dir.path().join("alpha.rs"), "fn a() {}").unwrap();
+        fs::write(temp_dir.path().join("middle.rs"), "fn m() {}").unwrap();
+
+        let files = collect_rust_files(temp_dir.path().to_str().unwrap()).unwrap();
+
+        let mut expected = files.clone();
+        expected.sort();
+        assert_eq!(files, expected);
+
+        let names: Vec<_> = files
+            .iter()
+            .filter_map(|p| p.file_name().and_then(|n| n.to_str()))
+            .collect();
+        assert_eq!(names, vec!["alpha.rs", "middle.rs", "zebra.rs"]);
     }
 
     #[test]
