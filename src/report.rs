@@ -82,9 +82,12 @@ fn render_analyzer_block(
                 lines_str.join(", ")
             };
 
-            if joined.len() > 60 {
+            let plain_joined_len = lines_str.join(", ").len();
+
+            if plain_joined_len > 60 {
                 let mut line_chunks = Vec::new();
                 let mut current_line = String::new();
+                let mut current_len = 0;
 
                 for (i, line_num) in lines_str.iter().enumerate() {
                     let separator = if i == 0 { "" } else { ", " };
@@ -96,15 +99,17 @@ fn render_analyzer_block(
 
                     let addition_len = separator.len() + line_num.len();
 
-                    if current_line.len() + addition_len > 60 && !current_line.is_empty() {
+                    if current_len + addition_len > 60 && current_len > 0 {
                         line_chunks.push(current_line.clone());
                         current_line = if color {
                             format!("{}", line_num.magenta())
                         } else {
                             line_num.clone()
                         };
+                        current_len = line_num.len();
                     } else {
                         current_line.push_str(&addition);
+                        current_len += addition_len;
                     }
                 }
 

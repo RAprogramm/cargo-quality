@@ -651,7 +651,12 @@ fn run_diff(
     let mut result = DiffResult::new();
 
     for file_path in files {
-        let file_diff = generate_diff(file_path.to_str().unwrap_or(""), &analyzers)?;
+        let Some(path_str) = file_path.to_str() else {
+            eprintln!("Skipping non-UTF-8 path: {}", file_path.display());
+            continue;
+        };
+
+        let file_diff = generate_diff(path_str, &analyzers)?;
         result.add_file(file_diff);
     }
 

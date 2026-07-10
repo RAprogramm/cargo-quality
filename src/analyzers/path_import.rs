@@ -10,7 +10,7 @@
 //! - Enum variants (should NOT be imported)
 //! - Associated constants (should NOT be imported)
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use masterror::AppResult;
 use syn::{
@@ -172,10 +172,23 @@ impl Analyzer for PathImportAnalyzer {
     }
 
     fn fix(&self, ast: &mut File) -> AppResult<usize> {
+        let mut collector = PathCollector {
+            paths: HashMap::new()
+        };
+        collector.visit_file(ast);
+
+        let blocked: HashSet<String> = collector
+            .paths
+            .into_iter()
+            .filter(|(_, sources)| sources.len() > 1)
+            .map(|(ident, _)| ident)
+            .collect();
+
         let mut fixer = PathFixer {
             fixed_count: 0,
-            imports:     Vec::new(),
-            seen:        HashSet::new()
+            imports: Vec::new(),
+            seen: HashSet::new(),
+            blocked
         };
         fixer.visit_file_mut(ast);
 
@@ -186,6 +199,48 @@ impl Analyzer for PathImportAnalyzer {
         }
 
         Ok(fixer.fixed_count)
+    }
+}
+
+/// Full colon-joined path string of an expression path.
+///
+/// # Arguments
+///
+/// * `path` - Path to render
+///
+/// # Returns
+///
+/// Segments joined with `::`
+fn path_to_string(path: &Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
+/// Collects the final identifier of each extractable path and its source paths.
+///
+/// Used to detect short-name collisions: an identifier reachable from more than
+/// one distinct full path cannot be safely rewritten to an import.
+struct PathCollector {
+    paths: HashMap<String, HashSet<String>>
+}
+
+impl<'ast> Visit<'ast> for PathCollector {
+    fn visit_expr_path(&mut self, node: &'ast ExprPath) {
+        if node.qself.is_none()
+            && PathImportAnalyzer::should_extract_to_import(&node.path)
+            && let Some(last) = node.path.segments.last()
+        {
+            let ident = last.ident.to_string();
+            self.paths
+                .entry(ident)
+                .or_default()
+                .insert(path_to_string(&node.path));
+        }
+
+        syn::visit::visit_expr_path(self, node);
     }
 }
 
@@ -243,21 +298,24 @@ impl<'ast> syn::visit::Visit<'ast> for PathVisitor {
 struct PathFixer {
     fixed_count: usize,
     imports:     Vec<Item>,
-    seen:        HashSet<String>
+    seen:        HashSet<String>,
+    blocked:     HashSet<String>
 }
 
 impl VisitMut for PathFixer {
     fn visit_expr_path_mut(&mut self, node: &mut ExprPath) {
         if node.qself.is_none() && PathImportAnalyzer::should_extract_to_import(&node.path) {
-            let path_str = node
+            let path_str = path_to_string(&node.path);
+
+            let is_blocked = node
                 .path
                 .segments
-                .iter()
-                .map(|s| s.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::");
+                .last()
+                .is_some_and(|last| self.blocked.contains(&last.ident.to_string()));
 
-            if let Some(last) = node.path.segments.last().cloned() {
+            if let Some(last) = node.path.segments.last().cloned()
+                && !is_blocked
+            {
                 if self.seen.insert(path_str.clone())
                     && let Ok(item_use) = syn::parse_str::<ItemUse>(&format!("use {};", path_str))
                 {
@@ -459,6 +517,43 @@ mod tests {
 
         let output = prettyplease::unparse(&code);
         assert_eq!(output.matches("use std::fs::read_to_string;").count(), 1);
+    }
+
+    #[test]
+    fn test_fix_skips_short_name_collision() {
+        let analyzer = PathImportAnalyzer::new();
+        let mut code: File = parse_quote! {
+            fn main() {
+                let a = std::fs::read("x");
+                let b = other::helpers::read("y");
+            }
+        };
+
+        let fixed = analyzer.fix(&mut code).unwrap();
+        assert_eq!(fixed, 0);
+
+        let output = prettyplease::unparse(&code);
+        assert!(output.contains("std::fs::read(\"x\")"));
+        assert!(output.contains("other::helpers::read(\"y\")"));
+        assert!(!output.contains("use std::fs::read;"));
+        assert!(!output.contains("use other::helpers::read;"));
+    }
+
+    #[test]
+    fn test_fix_same_path_repeated_is_not_collision() {
+        let analyzer = PathImportAnalyzer::new();
+        let mut code: File = parse_quote! {
+            fn main() {
+                let a = std::fs::read("x");
+                let b = std::fs::read("y");
+            }
+        };
+
+        let fixed = analyzer.fix(&mut code).unwrap();
+        assert_eq!(fixed, 2);
+
+        let output = prettyplease::unparse(&code);
+        assert_eq!(output.matches("use std::fs::read;").count(), 1);
     }
 
     #[test]
