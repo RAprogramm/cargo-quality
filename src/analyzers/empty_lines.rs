@@ -85,7 +85,7 @@ impl EmptyLinesAnalyzer {
                     column:  1,
                     message: "Empty line in function body indicates untamed complexity"
                         .to_string(),
-                    fix:     Fix::Simple(String::new())
+                    fix:     Fix::None
                 });
             }
         }
@@ -190,11 +190,9 @@ impl Analyzer for EmptyLinesAnalyzer {
         };
         visitor.visit_file(ast);
 
-        let fixable_count = visitor.issues.len();
-
         Ok(AnalysisResult {
-            issues: visitor.issues,
-            fixable_count
+            issues:        visitor.issues,
+            fixable_count: 0
         })
     }
 
@@ -331,7 +329,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fixable_count() {
+    fn test_advisory_only_not_fixable() {
         let analyzer = EmptyLinesAnalyzer::new();
         let content = r#"fn main() {
     let x = 1;
@@ -341,8 +339,9 @@ mod tests {
         let code = syn::parse_str(content).unwrap();
 
         let result = analyzer.analyze(&code, content).unwrap();
-        assert_eq!(result.fixable_count, 1);
+        assert_eq!(result.fixable_count, 0);
         assert_eq!(result.issues.len(), 1);
+        assert!(!result.issues[0].fix.is_available());
     }
 
     #[test]
