@@ -12,6 +12,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### CI/CD
+
+- Bump the github-actions group across 1 directory with 2 updates ([#52](https://github.com/RAprogramm/cargo-quality/issues/52)) ([8b0c350](https://github.com/RAprogramm/cargo-quality/commit/8b0c350b3a56a7b012fd14ff492128ad8d939780))
+- Bump the github-actions group across 1 directory with 4 updates ([#50](https://github.com/RAprogramm/cargo-quality/issues/50)) ([5f25817](https://github.com/RAprogramm/cargo-quality/commit/5f25817306496e1cf47f033bac3f47703de76f31))
+
+### Documentation
+
+- Update changelog [skip ci] ([4303b29](https://github.com/RAprogramm/cargo-quality/commit/4303b2905ba7bdd9dc46bd00ac5838345faced10))
+
+### Deps
+
+- Bump the rust-dependencies group with 3 updates ([#62](https://github.com/RAprogramm/cargo-quality/issues/62)) ([66e7200](https://github.com/RAprogramm/cargo-quality/commit/66e7200f932ffdda9e1ba73d530188403182801d))
+- Bump the rust-dependencies group with 2 updates ([#59](https://github.com/RAprogramm/cargo-quality/issues/59)) ([388c079](https://github.com/RAprogramm/cargo-quality/commit/388c079e5223868c9821cdd4b68f77903da5e968))
+- Bump ignore from 0.4.25 to 0.4.26 in the rust-dependencies group ([#57](https://github.com/RAprogramm/cargo-quality/issues/57)) ([aa37009](https://github.com/RAprogramm/cargo-quality/commit/aa37009af47bfa4e529d70ebcaab578e3d4d1a4c))
+- Bump clap_complete in the rust-dependencies group ([#56](https://github.com/RAprogramm/cargo-quality/issues/56)) ([3c23728](https://github.com/RAprogramm/cargo-quality/commit/3c23728176e3945401fae8e9415d16ab2b6575cf))
+- Bump clap_complete in the rust-dependencies group ([#55](https://github.com/RAprogramm/cargo-quality/issues/55)) ([e05db7f](https://github.com/RAprogramm/cargo-quality/commit/e05db7ff465fdb507111e6d52e59963491745574))
+- Bump clap_complete in the rust-dependencies group ([#54](https://github.com/RAprogramm/cargo-quality/issues/54)) ([cea4535](https://github.com/RAprogramm/cargo-quality/commit/cea453574e01a5be5f3eeab062a5769ce1c3b0f0))
+- Bump the rust-dependencies group with 2 updates ([#53](https://github.com/RAprogramm/cargo-quality/issues/53)) ([ff8f908](https://github.com/RAprogramm/cargo-quality/commit/ff8f908ba8d833615b1ea6bdae5bb2eba216c1df))
+- Bump clap_complete in the rust-dependencies group ([#51](https://github.com/RAprogramm/cargo-quality/issues/51)) ([3e2112f](https://github.com/RAprogramm/cargo-quality/commit/3e2112fb5dd230b3ec0e9471a4a51a4e43e6d3f7))
+- Bump terminal_size in the rust-dependencies group ([#49](https://github.com/RAprogramm/cargo-quality/issues/49)) ([bd4970b](https://github.com/RAprogramm/cargo-quality/commit/bd4970bd7179b26810a2fa6d6fe172c278681612))
+- Bump the rust-dependencies group with 4 updates ([#47](https://github.com/RAprogramm/cargo-quality/issues/47)) ([8dfdabe](https://github.com/RAprogramm/cargo-quality/commit/8dfdabed16e58f501f3a1cfc3ed76de5aee04827))
+- Bump quote from 1.0.44 to 1.0.45 in the rust-dependencies group ([#46](https://github.com/RAprogramm/cargo-quality/issues/46)) ([b723c9c](https://github.com/RAprogramm/cargo-quality/commit/b723c9c6d96e23af36c3cd2b876fb52dc7f4001b))
+- Bump tempfile from 3.25.0 to 3.26.0 in the rust-dependencies group ([#44](https://github.com/RAprogramm/cargo-quality/issues/44)) ([b9bdc11](https://github.com/RAprogramm/cargo-quality/commit/b9bdc11e6c1040248720d8d513352ef94d05a3d8))
+- Bump the rust-dependencies group with 3 updates ([#43](https://github.com/RAprogramm/cargo-quality/issues/43)) ([2e18ba6](https://github.com/RAprogramm/cargo-quality/commit/2e18ba6e777c2f4e096e8521a8558d06ba7d1841))
+- Bump the rust-dependencies group with 4 updates ([#42](https://github.com/RAprogramm/cargo-quality/issues/42)) ([b673acf](https://github.com/RAprogramm/cargo-quality/commit/b673acf5648e5ecc59b3fefb95b4186d2a15bb47))
+- Bump the rust-dependencies group with 2 updates ([#41](https://github.com/RAprogramm/cargo-quality/issues/41)) ([2169daf](https://github.com/RAprogramm/cargo-quality/commit/2169daf3a08aa956bee4ace86e61dd33d7422536))
+- Bump clap from 4.5.54 to 4.5.56 in the rust-dependencies group ([#40](https://github.com/RAprogramm/cargo-quality/issues/40)) ([dfe594d](https://github.com/RAprogramm/cargo-quality/commit/dfe594d8f5ce812163ba457f788e49245598b7f0))
+
+## [0.2.0] - 2026-01-29
+
 ### Added
 
 - Add mod-rs subcommand for direct module style conversion ([1db63a5](https://github.com/RAprogramm/cargo-quality/commit/1db63a5991e5adc49cc61e766fb706daf3dcd3e2))
@@ -124,7 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump the rust-dependencies group with 7 updates ([#26](https://github.com/RAprogramm/cargo-quality/issues/26)) ([0523797](https://github.com/RAprogramm/cargo-quality/commit/0523797e9ae1100d2eaa2ea42734ed7861cce35b))
 
-[Unreleased]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/RAprogramm/cargo-quality/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.2...v0.1.5
 [0.1.2]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.0...v0.1.1
