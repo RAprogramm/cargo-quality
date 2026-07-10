@@ -29,7 +29,7 @@ use crate::{
     analyzer::{AnalysisResult, Fix, Issue},
     analyzers::get_analyzers,
     cli::{Command, QualityArgs, Shell},
-    differ::{DiffResult, generate_diff, show_full, show_interactive, show_summary},
+    differ::{DiffResult, apply_diff, generate_diff, show_full, show_interactive, show_summary},
     error::{IoError, ParseError},
     file_utils::collect_rust_files,
     mod_rs::{ModRsResult, find_mod_rs_issues, fix_all_mod_rs},
@@ -663,7 +663,11 @@ fn run_diff(
     if summary {
         show_summary(&result, color);
     } else if interactive {
-        let _selected = show_interactive(&result, color)?;
+        let selected = show_interactive(&result, color)?;
+        if selected.total_changes() > 0 {
+            let applied = apply_diff(&selected)?;
+            println!("Applied {} changes", applied);
+        }
     } else {
         show_full(&result, color);
     }
