@@ -10,9 +10,12 @@
 //! - Enum variants (should NOT be imported)
 //! - Associated constants (should NOT be imported)
 
+use std::collections::HashSet;
+
 use masterror::AppResult;
 use syn::{
-    ExprMethodCall, ExprPath, File, Path,
+    ExprPath, File, Item, ItemUse, Path,
+    punctuated::Punctuated,
     spanned::Spanned,
     visit::Visit,
     visit_mut::{self, VisitMut}
@@ -170,9 +173,18 @@ impl Analyzer for PathImportAnalyzer {
 
     fn fix(&self, ast: &mut File) -> AppResult<usize> {
         let mut fixer = PathFixer {
-            fixed_count: 0
+            fixed_count: 0,
+            imports:     Vec::new(),
+            seen:        HashSet::new()
         };
         fixer.visit_file_mut(ast);
+
+        if !fixer.imports.is_empty() {
+            let mut items = std::mem::take(&mut fixer.imports);
+            items.append(&mut ast.items);
+            ast.items = items;
+        }
+
         Ok(fixer.fixed_count)
     }
 }
@@ -221,13 +233,47 @@ impl<'ast> syn::visit::Visit<'ast> for PathVisitor {
     }
 }
 
+/// Rewrites qualified paths to short names and collects the imports to add.
+///
+/// For each expression path that
+/// [`PathImportAnalyzer::should_extract_to_import`] approves, the leading
+/// segments are dropped so only the final segment (with its generic arguments)
+/// remains, and a matching `use` item is queued for insertion at the top of the
+/// file.
 struct PathFixer {
-    fixed_count: usize
+    fixed_count: usize,
+    imports:     Vec<Item>,
+    seen:        HashSet<String>
 }
 
 impl VisitMut for PathFixer {
-    fn visit_expr_method_call_mut(&mut self, node: &mut ExprMethodCall) {
-        visit_mut::visit_expr_method_call_mut(self, node);
+    fn visit_expr_path_mut(&mut self, node: &mut ExprPath) {
+        if node.qself.is_none() && PathImportAnalyzer::should_extract_to_import(&node.path) {
+            let path_str = node
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::");
+
+            if let Some(last) = node.path.segments.last().cloned() {
+                if self.seen.insert(path_str.clone())
+                    && let Ok(item_use) = syn::parse_str::<ItemUse>(&format!("use {};", path_str))
+                {
+                    self.imports.push(Item::Use(item_use));
+                }
+
+                let mut segments = Punctuated::new();
+                segments.push(last);
+                node.path.segments = segments;
+                node.path.leading_colon = None;
+
+                self.fixed_count += 1;
+            }
+        }
+
+        visit_mut::visit_expr_path_mut(self, node);
     }
 }
 
@@ -368,7 +414,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fix_returns_zero() {
+    fn test_fix_rewrites_path_and_adds_import() {
         let analyzer = PathImportAnalyzer::new();
         let mut code: File = parse_quote! {
             fn main() {
@@ -377,7 +423,59 @@ mod tests {
         };
 
         let fixed = analyzer.fix(&mut code).unwrap();
+        assert_eq!(fixed, 1);
+
+        let output = prettyplease::unparse(&code);
+        assert!(output.contains("use std::fs::read_to_string;"));
+        assert!(output.contains("read_to_string(\"file.txt\")"));
+        assert!(!output.contains("std::fs::read_to_string("));
+    }
+
+    #[test]
+    fn test_fix_returns_zero_without_issues() {
+        let analyzer = PathImportAnalyzer::new();
+        let mut code: File = parse_quote! {
+            fn main() {
+                let v = Vec::new();
+            }
+        };
+
+        let fixed = analyzer.fix(&mut code).unwrap();
         assert_eq!(fixed, 0);
+    }
+
+    #[test]
+    fn test_fix_dedups_repeated_import() {
+        let analyzer = PathImportAnalyzer::new();
+        let mut code: File = parse_quote! {
+            fn main() {
+                let a = std::fs::read_to_string("a");
+                let b = std::fs::read_to_string("b");
+            }
+        };
+
+        let fixed = analyzer.fix(&mut code).unwrap();
+        assert_eq!(fixed, 2);
+
+        let output = prettyplease::unparse(&code);
+        assert_eq!(output.matches("use std::fs::read_to_string;").count(), 1);
+    }
+
+    #[test]
+    fn test_fix_preserves_generic_arguments() {
+        let analyzer = PathImportAnalyzer::new();
+        let mut code: File = parse_quote! {
+            fn main() {
+                let size = core::mem::size_of::<u32>();
+            }
+        };
+
+        let fixed = analyzer.fix(&mut code).unwrap();
+        assert_eq!(fixed, 1);
+
+        let output = prettyplease::unparse(&code);
+        assert!(output.contains("use core::mem::size_of;"));
+        assert!(output.contains("size_of::<u32>()"));
     }
 
     #[test]
