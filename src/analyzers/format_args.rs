@@ -139,10 +139,6 @@ impl Analyzer for FormatArgsAnalyzer {
             fixable_count: 0
         })
     }
-
-    fn fix(&self, _ast: &mut File) -> AppResult<usize> {
-        Ok(0)
-    }
 }
 
 struct FormatVisitor {
@@ -308,16 +304,16 @@ mod tests {
     }
 
     #[test]
-    fn test_fix_returns_zero() {
+    fn test_no_edits() {
         let analyzer = FormatArgsAnalyzer::new();
-        let mut code: File = parse_quote! {
+        let code: File = parse_quote! {
             fn main() {
                 println!("Hello {} {} {}", 1, 2, 3);
             }
         };
 
-        let fixed = analyzer.fix(&mut code).unwrap();
-        assert_eq!(fixed, 0);
+        let edits = analyzer.edits(&code, "").unwrap();
+        assert!(edits.is_empty());
     }
 
     #[test]

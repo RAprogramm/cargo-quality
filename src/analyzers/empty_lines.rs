@@ -211,10 +211,6 @@ impl Analyzer for EmptyLinesAnalyzer {
             fixable_count: 0
         })
     }
-
-    fn fix(&self, _ast: &mut File) -> AppResult<usize> {
-        Ok(0)
-    }
 }
 
 struct FunctionVisitor<'a> {
@@ -374,17 +370,17 @@ mod tests {
     }
 
     #[test]
-    fn test_fix_returns_zero() {
+    fn test_no_edits() {
         let analyzer = EmptyLinesAnalyzer::new();
         let content = r#"fn main() {
     let x = 1;
 
     let y = 2;
 }"#;
-        let mut code = syn::parse_str(content).unwrap();
+        let code = syn::parse_str(content).unwrap();
 
-        let fixed = analyzer.fix(&mut code).unwrap();
-        assert_eq!(fixed, 0);
+        let edits = analyzer.edits(&code, content).unwrap();
+        assert!(edits.is_empty());
     }
 
     #[test]
