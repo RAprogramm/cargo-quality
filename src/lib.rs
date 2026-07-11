@@ -91,10 +91,6 @@
 //!     fn analyze(&self, _ast: &File, _content: &str) -> AppResult<AnalysisResult> {
 //!         Ok(AnalysisResult::default())
 //!     }
-//!
-//!     fn fix(&self, _ast: &mut File) -> AppResult<usize> {
-//!         Ok(0)
-//!     }
 //! }
 //! ```
 //!
@@ -117,6 +113,7 @@ pub mod analyzers;
 pub mod differ;
 pub mod error;
 pub mod file_utils;
+pub mod fixer;
 pub mod formatter;
 pub mod mod_rs;
 pub mod report;

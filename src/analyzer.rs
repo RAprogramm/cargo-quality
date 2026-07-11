@@ -9,8 +9,37 @@
 //! - `Issue` struct representing detected problems
 //! - `AnalysisResult` struct containing analysis outcomes
 
+use std::ops::Range;
+
 use masterror::AppResult;
 use syn::File;
+
+/// A single text replacement over the original source.
+///
+/// Fixes are expressed as byte-range edits against the untouched source text so
+/// that everything outside the edited range — comments, blank lines, and the
+/// author's formatting — is preserved. This mirrors how `rustfmt` and
+/// `rust-analyzer` apply changes, rather than reprinting the AST (which loses
+/// comments and reformats the whole file).
+///
+/// # Examples
+///
+/// ```
+/// use cargo_quality::analyzer::TextEdit;
+///
+/// let edit = TextEdit {
+///     range:       0..9,
+///     replacement: String::new()
+/// };
+/// assert_eq!(edit.range.len(), 9);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextEdit {
+    /// Byte range in the original source to replace
+    pub range:       Range<usize>,
+    /// Text to substitute for the range (empty to delete)
+    pub replacement: String
+}
 
 /// Type of fix that can be applied to resolve an issue.
 ///
@@ -183,10 +212,6 @@ pub struct AnalysisResult {
 ///     fn analyze(&self, ast: &File, content: &str) -> AppResult<AnalysisResult> {
 ///         Ok(AnalysisResult::default())
 ///     }
-///
-///     fn fix(&self, ast: &mut File) -> AppResult<usize> {
-///         Ok(0)
-///     }
 /// }
 /// ```
 pub trait Analyzer {
@@ -207,18 +232,24 @@ pub trait Analyzer {
     /// `AppResult<AnalysisResult>` - Analysis results or error
     fn analyze(&self, ast: &File, content: &str) -> AppResult<AnalysisResult>;
 
-    /// Apply automatic fixes to syntax tree.
+    /// Produce byte-range text edits that fix the detected issues.
     ///
-    /// Modifies the AST in-place to fix detected issues.
+    /// Edits are applied against the original source, preserving everything
+    /// outside the edited ranges (comments, blank lines, formatting). The
+    /// default implementation returns no edits, for analyzers that are advisory
+    /// only.
     ///
     /// # Arguments
     ///
-    /// * `ast` - Mutable syntax tree to fix
+    /// * `ast` - Parsed Rust syntax tree to fix
+    /// * `content` - Original source code the edits apply to
     ///
     /// # Returns
     ///
-    /// `AppResult<usize>` - Number of fixes applied or error
-    fn fix(&self, ast: &mut File) -> AppResult<usize>;
+    /// `AppResult<Vec<TextEdit>>` - Non-overlapping edits, or error
+    fn edits(&self, _ast: &File, _content: &str) -> AppResult<Vec<TextEdit>> {
+        Ok(Vec::new())
+    }
 }
 
 #[cfg(test)]

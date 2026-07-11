@@ -128,10 +128,6 @@ impl Analyzer for MyAnalyzer {
     fn analyze(&self, _ast: &File, _content: &str) -> AppResult<AnalysisResult> {
         Ok(AnalysisResult::default())
     }
-
-    fn fix(&self, _ast: &mut File) -> AppResult<usize> {
-        Ok(0)
-    }
 }
 ```
 

@@ -209,10 +209,6 @@ impl Analyzer for InlineCommentsAnalyzer {
             fixable_count: 0
         })
     }
-
-    fn fix(&self, _ast: &mut File) -> AppResult<usize> {
-        Ok(0)
-    }
 }
 
 struct FunctionVisitor<'a> {
@@ -398,16 +394,16 @@ impl Foo {
     }
 
     #[test]
-    fn test_fix_returns_zero() {
+    fn test_no_edits() {
         let analyzer = InlineCommentsAnalyzer::new();
         let content = r#"fn main() {
     // Comment
     let x = 1;
 }"#;
-        let mut code = syn::parse_str(content).unwrap();
+        let code = syn::parse_str(content).unwrap();
 
-        let fixed = analyzer.fix(&mut code).unwrap();
-        assert_eq!(fixed, 0);
+        let edits = analyzer.edits(&code, content).unwrap();
+        assert!(edits.is_empty());
     }
 
     #[test]

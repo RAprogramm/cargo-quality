@@ -42,6 +42,7 @@ mod cli;
 mod differ;
 mod error;
 mod file_utils;
+mod fixer;
 mod formatter;
 mod help;
 mod mod_rs;
@@ -580,23 +581,26 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
         let files = collect_rust_files(path)?;
         for file_path in files {
             let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
-            let mut ast = syn::parse_file(&content).map_err(ParseError::from)?;
+            let ast = syn::parse_file(&content).map_err(ParseError::from)?;
 
-            let mut total_fixed = 0;
-
+            let mut edits = Vec::new();
             for analyzer in &analyzers {
-                let fixed = analyzer.fix(&mut ast)?;
-                total_fixed += fixed;
+                edits.extend(analyzer.edits(&ast, &content)?);
             }
 
-            if total_fixed > 0 {
-                println!("Fixed {} issues in {}", total_fixed, file_path.display());
-
-                if !dry_run {
-                    let formatted = prettyplease::unparse(&ast);
-                    fs::write(&file_path, formatted).map_err(IoError::from)?;
-                }
+            let fixed = edits.iter().filter(|edit| !edit.range.is_empty()).count();
+            if fixed == 0 {
+                continue;
             }
+
+            if dry_run {
+                println!("Would fix {} issues in {}", fixed, file_path.display());
+                continue;
+            }
+
+            let updated = fixer::apply_edits(&content, edits);
+            fs::write(&file_path, updated).map_err(IoError::from)?;
+            println!("Fixed {} issues in {}", fixed, file_path.display());
         }
     }
 

@@ -27,7 +27,6 @@ quote = "1"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 masterror = "0.29"
 ignore = "0.4"
-prettyplease = "0.2"
 owo-colors = "4"
 terminal_size = "0.4"
 unicode-width = "0.2"
