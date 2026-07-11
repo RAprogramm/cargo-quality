@@ -87,35 +87,23 @@ runs:
           ANALYZER_ARG="-a ${{ inputs.analyzer }}"
         fi
 
-        OUTPUT=$(${{ github.action_path }}/target/release/cargo-qual check ${{ inputs.path }} $ANALYZER_ARG 2>&1) || true
+        OUTPUT=$(${{ github.action_path }}/target/release/cargo-qual check ${{ inputs.path }} -v $ANALYZER_ARG 2>&1) || true
 
         echo "Analysis output:"
         echo "$OUTPUT"
 
-        TOTAL=0
-        PATH_IMPORT=0
-        FORMAT_ARGS=0
-        EMPTY_LINES=0
-        INLINE_COMMENTS=0
-        MOD_RS=0
+        count_for() {
+          echo "$OUTPUT" | grep -oP "\[$1\] - \K\d+" | head -1
+        }
 
-        if echo "$OUTPUT" | grep -q "\[path_import\]"; then
-          PATH_IMPORT=$(echo "$OUTPUT" | grep -oP '\[path_import\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
-        fi
-        if echo "$OUTPUT" | grep -q "\[format_args\]"; then
-          FORMAT_ARGS=$(echo "$OUTPUT" | grep -oP '\[format_args\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
-        fi
-        if echo "$OUTPUT" | grep -q "\[empty_lines\]"; then
-          EMPTY_LINES=$(echo "$OUTPUT" | grep -oP '\[empty_lines\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
-        fi
-        if echo "$OUTPUT" | grep -q "\[inline_comments\]"; then
-          INLINE_COMMENTS=$(echo "$OUTPUT" | grep -oP '\[inline_comments\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
-        fi
-        if echo "$OUTPUT" | grep -q "\[mod_rs\]"; then
-          MOD_RS=$(echo "$OUTPUT" | grep -oP '\[mod_rs\].*?(\d+) issues' | grep -oP '\d+' | head -1 || echo "0")
-        fi
+        PATH_IMPORT=$(count_for path_import); PATH_IMPORT=${PATH_IMPORT:-0}
+        FORMAT_ARGS=$(count_for format_args); FORMAT_ARGS=${FORMAT_ARGS:-0}
+        EMPTY_LINES=$(count_for empty_lines); EMPTY_LINES=${EMPTY_LINES:-0}
+        INLINE_COMMENTS=$(count_for inline_comments); INLINE_COMMENTS=${INLINE_COMMENTS:-0}
+        MOD_RS=$(count_for mod_rs); MOD_RS=${MOD_RS:-0}
 
-        TOTAL=$((PATH_IMPORT + FORMAT_ARGS + EMPTY_LINES + INLINE_COMMENTS + MOD_RS))
+        TOTAL=$(echo "$OUTPUT" | grep -oP 'Total issues:\s*\K\d+' | head -1)
+        TOTAL=${TOTAL:-0}
 
         echo "total_issues=$TOTAL" >> $GITHUB_OUTPUT
         echo "path_import_issues=$PATH_IMPORT" >> $GITHUB_OUTPUT
