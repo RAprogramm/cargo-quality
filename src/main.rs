@@ -56,12 +56,7 @@ fn main() -> AppResult<()> {
             verbose,
             analyzer,
             color
-        } => {
-            let has_issues = check_quality(&path, verbose, analyzer.as_deref(), color)?;
-            if has_issues {
-                std::process::exit(1);
-            }
-        }
+        } => std::process::exit(check_command(&path, verbose, analyzer.as_deref(), color)?),
         Command::Fix {
             path,
             dry_run,
@@ -462,6 +457,29 @@ fn check_quality(
     Ok(global_report.total_issues() > 0)
 }
 
+/// Runs the check command and maps the result to a process exit code.
+///
+/// # Arguments
+///
+/// * `path` - File or directory path to analyze
+/// * `verbose` - Print confirmation for files without issues
+/// * `analyzer_name` - Optional analyzer name to run
+/// * `color` - Enable colored output
+///
+/// # Returns
+///
+/// `AppResult<i32>` - `1` if any issues were found, `0` otherwise, error on IO
+/// or parse failures
+fn check_command(
+    path: &str,
+    verbose: bool,
+    analyzer_name: Option<&str>,
+    color: bool
+) -> AppResult<i32> {
+    let has_issues = check_quality(path, verbose, analyzer_name, color)?;
+    Ok(i32::from(has_issues))
+}
+
 /// Adds mod.rs issues to the global report.
 ///
 /// Converts ModRsResult into Report format for unified display.
@@ -719,6 +737,28 @@ mod tests {
 
         let result = check_quality(temp_dir.path().to_str().unwrap(), false, None, false);
         assert!(result.unwrap(), "issues present should return true");
+    }
+
+    #[test]
+    fn test_check_command_exit_codes() {
+        let temp_dir = TempDir::new().unwrap();
+        let dirty = temp_dir.path().join("dirty.rs");
+        fs::write(
+            &dirty,
+            "fn main() { let x = std::fs::read_to_string(\"f\"); }"
+        )
+        .unwrap();
+        assert_eq!(
+            check_command(dirty.to_str().unwrap(), false, None, false).unwrap(),
+            1
+        );
+
+        let clean = temp_dir.path().join("clean.rs");
+        fs::write(&clean, "fn main() {}").unwrap();
+        assert_eq!(
+            check_command(clean.to_str().unwrap(), false, None, false).unwrap(),
+            0
+        );
     }
 
     #[test]
