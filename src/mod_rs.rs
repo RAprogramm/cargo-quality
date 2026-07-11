@@ -19,9 +19,11 @@
 
 use std::{
     fs::{read_dir, remove_dir as remove_directory, rename},
+    io,
     path::{Path, PathBuf}
 };
 
+use ignore::WalkBuilder;
 use masterror::AppResult;
 
 use crate::error::IoError;
@@ -108,33 +110,39 @@ pub fn find_mod_rs_issues(path: &str) -> AppResult<ModRsResult> {
         return Ok(result);
     }
 
-    collect_mod_rs_recursive(root, &mut result)?;
+    collect_mod_rs_walked(path, &mut result);
     Ok(result)
 }
 
-/// Recursively collects mod.rs files from directory.
+/// Collects mod.rs files while respecting ignore rules.
+///
+/// Walks the tree with [`WalkBuilder`], which honors `.gitignore`/`.ignore`
+/// and skips hidden directories (e.g. `.git`), matching
+/// [`crate::file_utils::collect_rust_files`]. This prevents scanning build
+/// artifacts and vendored dependencies under `target/`.
 ///
 /// # Arguments
 ///
-/// * `dir` - Directory to search in
+/// * `path` - Root directory to search in
 /// * `result` - Result accumulator
-fn collect_mod_rs_recursive(dir: &Path, result: &mut ModRsResult) -> AppResult<()> {
-    let entries = read_dir(dir).map_err(IoError::from)?;
+fn collect_mod_rs_walked(path: &str, result: &mut ModRsResult) {
+    for entry in WalkBuilder::new(path)
+        .follow_links(true)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .build()
+        .flatten()
+    {
+        let entry_path = entry.path();
 
-    for entry in entries {
-        let entry = entry.map_err(IoError::from)?;
-        let path = entry.path();
-
-        if path.is_dir() {
-            collect_mod_rs_recursive(&path, result)?;
-        } else if is_mod_rs(&path)
-            && let Some(issue) = create_issue(&path)
+        if entry.file_type().is_some_and(|ft| ft.is_file())
+            && is_mod_rs(entry_path)
+            && let Some(issue) = create_issue(entry_path)
         {
             result.issues.push(issue);
         }
     }
-
-    Ok(())
 }
 
 /// Checks if path points to a mod.rs file.
@@ -209,6 +217,17 @@ fn create_issue(path: &Path) -> Option<ModRsIssue> {
 /// }
 /// ```
 pub fn fix_mod_rs(issue: &ModRsIssue) -> AppResult<()> {
+    if issue.suggested.exists() {
+        return Err(IoError::from(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!(
+                "target already exists, refusing to overwrite: {}",
+                issue.suggested.display()
+            )
+        ))
+        .into());
+    }
+
     rename(&issue.path, &issue.suggested).map_err(IoError::from)?;
     if let Some(parent) = issue.path.parent()
         && is_directory_empty(parent)?
@@ -238,13 +257,23 @@ pub fn fix_mod_rs(issue: &ModRsIssue) -> AppResult<()> {
 /// ```
 pub fn fix_all_mod_rs(path: &str) -> AppResult<usize> {
     let result = find_mod_rs_issues(path)?;
-    let count = result.len();
+    let mut applied = 0;
 
     for issue in result.issues {
+        if issue.suggested.exists() {
+            eprintln!(
+                "Skipping {}: target {} already exists",
+                issue.path.display(),
+                issue.suggested.display()
+            );
+            continue;
+        }
+
         fix_mod_rs(&issue)?;
+        applied += 1;
     }
 
-    Ok(count)
+    Ok(applied)
 }
 
 /// Checks if a directory is empty.
@@ -361,6 +390,58 @@ mod tests {
 
         assert!(temp.path().join("module1.rs").exists());
         assert!(temp.path().join("module2.rs").exists());
+    }
+
+    #[test]
+    fn test_fix_mod_rs_refuses_to_overwrite_existing() {
+        let temp = TempDir::new().unwrap();
+        let subdir = temp.path().join("foo");
+        create_dir(&subdir).unwrap();
+        write(subdir.join("mod.rs"), "MOD CONTENT").unwrap();
+        let sibling = temp.path().join("foo.rs");
+        write(&sibling, "KEEP ME").unwrap();
+
+        let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
+        assert!(fix_mod_rs(&result.issues[0]).is_err());
+        assert_eq!(read_to_string(&sibling).unwrap(), "KEEP ME");
+        assert!(subdir.join("mod.rs").exists());
+    }
+
+    #[test]
+    fn test_fix_all_skips_conflicting_target() {
+        let temp = TempDir::new().unwrap();
+        let subdir = temp.path().join("foo");
+        create_dir(&subdir).unwrap();
+        write(subdir.join("mod.rs"), "MOD CONTENT").unwrap();
+        write(temp.path().join("foo.rs"), "KEEP ME").unwrap();
+
+        let applied = fix_all_mod_rs(temp.path().to_str().unwrap()).unwrap();
+        assert_eq!(applied, 0);
+        assert_eq!(read_to_string(temp.path().join("foo.rs")).unwrap(), "KEEP ME");
+        assert!(subdir.join("mod.rs").exists());
+    }
+
+    #[test]
+    fn test_scan_respects_gitignore_and_hidden_dirs() {
+        let temp = TempDir::new().unwrap();
+
+        create_dir(temp.path().join(".git")).unwrap();
+        create_dir(temp.path().join(".git").join("h")).unwrap();
+        write(temp.path().join(".git").join("h").join("mod.rs"), "x").unwrap();
+
+        write(temp.path().join(".gitignore"), "target/\n").unwrap();
+        create_dir(temp.path().join("target")).unwrap();
+        create_dir(temp.path().join("target").join("dep")).unwrap();
+        write(temp.path().join("target").join("dep").join("mod.rs"), "x").unwrap();
+
+        create_dir(temp.path().join("src")).unwrap();
+        let src_foo = temp.path().join("src").join("foo");
+        create_dir(&src_foo).unwrap();
+        write(src_foo.join("mod.rs"), "pub mod a;").unwrap();
+
+        let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result.issues[0].message.contains("foo"));
     }
 
     #[test]
