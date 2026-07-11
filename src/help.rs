@@ -42,6 +42,11 @@ pub fn display_help() {
     );
     println!(
         "    {} {}",
+        "EXIT:".fg::<Blue>().dimmed(),
+        "1 if any issues are found, 0 otherwise (usable as a CI gate)".fg::<Magenta>()
+    );
+    println!(
+        "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
         "--verbose, -v | --analyzer, -a <NAME> | --color, -c".fg::<Magenta>()
     );

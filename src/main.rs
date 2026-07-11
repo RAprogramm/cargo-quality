@@ -56,7 +56,12 @@ fn main() -> AppResult<()> {
             verbose,
             analyzer,
             color
-        } => check_quality(&path, verbose, analyzer.as_deref(), color)?,
+        } => {
+            let has_issues = check_quality(&path, verbose, analyzer.as_deref(), color)?;
+            if has_issues {
+                std::process::exit(1);
+            }
+        }
         Command::Fix {
             path,
             dry_run,
@@ -373,7 +378,9 @@ fn run_mod_rs(path: &str, fix: bool) -> AppResult<()> {
 ///
 /// # Returns
 ///
-/// `AppResult<()>` - Ok if analysis completes, error on IO or parse failures
+/// `AppResult<bool>` - `Ok(true)` if any issues were found, `Ok(false)` if the
+/// code is clean, error on IO or parse failures. The caller maps `true` to a
+/// non-zero process exit code so `check` can gate CI.
 ///
 /// # Examples
 ///
@@ -387,7 +394,7 @@ fn check_quality(
     verbose: bool,
     analyzer_name: Option<&str>,
     color: bool
-) -> AppResult<()> {
+) -> AppResult<bool> {
     let files = collect_rust_files(path)?;
     let all_analyzers = get_analyzers();
 
@@ -409,7 +416,7 @@ fn check_quality(
             eprintln!("  - {}", analyzer.name());
         }
         eprintln!("  - mod_rs");
-        return Ok(());
+        return Ok(false);
     }
 
     let mut global_report = GlobalReport::new();
@@ -452,7 +459,7 @@ fn check_quality(
         print!("{}", global_report.display_compact(color));
     }
 
-    Ok(())
+    Ok(global_report.total_issues() > 0)
 }
 
 /// Adds mod.rs issues to the global report.
@@ -711,7 +718,7 @@ mod tests {
         .unwrap();
 
         let result = check_quality(temp_dir.path().to_str().unwrap(), false, None, false);
-        assert!(result.is_ok());
+        assert!(result.unwrap(), "issues present should return true");
     }
 
     #[test]
@@ -782,7 +789,7 @@ mod tests {
     fn test_check_quality_no_files() {
         let temp_dir = TempDir::new().unwrap();
         let result = check_quality(temp_dir.path().to_str().unwrap(), false, None, false);
-        assert!(result.is_ok());
+        assert!(!result.unwrap(), "no files means no issues");
     }
 
     #[test]
