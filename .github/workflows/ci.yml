@@ -188,6 +188,11 @@ jobs:
       - run: cargo doc --no-deps --all-features
         env:
           RUSTDOCFLAGS: -D warnings
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-rdme
+      - name: Check README is in sync with crate docs
+        run: cargo rdme --intralinks-strip-links --check
 
   # ============================================================================
   # STAGE 3: Benchmarks (after tests pass)
