@@ -779,6 +779,10 @@ jobs:
         run: cargo qual fmt
 ```
 
+`cargo qual check` exits with code `1` when any issues are found and `0`
+otherwise, so the step above fails the job on quality issues without extra
+scripting.
+
 <div align="right"><a href="#table-of-contents">Back to top</a></div>
 
 ## Benefits
