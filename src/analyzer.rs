@@ -33,12 +33,29 @@ use syn::File;
 /// };
 /// assert_eq!(edit.range.len(), 9);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TextEdit {
     /// Byte range in the original source to replace
     pub range:       Range<usize>,
     /// Text to substitute for the range (empty to delete)
     pub replacement: String
+}
+
+/// A single fixable change: one source edit plus any import it requires.
+///
+/// Both the `fix` command and the diff/interactive flow are built from
+/// suggestions, so applying a change is identical everywhere: the [`edit`] is
+/// spliced into the source and the [`import`], if any, is inserted once
+/// (imports are deduplicated across the applied suggestions).
+///
+/// [`edit`]: Suggestion::edit
+/// [`import`]: Suggestion::import
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Suggestion {
+    /// The byte-range edit that performs the rewrite
+    pub edit:   TextEdit,
+    /// A `use` statement the rewrite depends on, if any
+    pub import: Option<String>
 }
 
 /// Type of fix that can be applied to resolve an issue.
@@ -232,12 +249,12 @@ pub trait Analyzer {
     /// `AppResult<AnalysisResult>` - Analysis results or error
     fn analyze(&self, ast: &File, content: &str) -> AppResult<AnalysisResult>;
 
-    /// Produce byte-range text edits that fix the detected issues.
+    /// Produce fixable suggestions for the detected issues.
     ///
-    /// Edits are applied against the original source, preserving everything
-    /// outside the edited ranges (comments, blank lines, formatting). The
-    /// default implementation returns no edits, for analyzers that are advisory
-    /// only.
+    /// Each suggestion is a byte-range edit (plus an optional import) applied
+    /// against the original source, preserving everything outside the edited
+    /// ranges (comments, blank lines, formatting). The default implementation
+    /// returns none, for analyzers that are advisory only.
     ///
     /// # Arguments
     ///
@@ -246,8 +263,8 @@ pub trait Analyzer {
     ///
     /// # Returns
     ///
-    /// `AppResult<Vec<TextEdit>>` - Non-overlapping edits, or error
-    fn edits(&self, _ast: &File, _content: &str) -> AppResult<Vec<TextEdit>> {
+    /// `AppResult<Vec<Suggestion>>` - Non-overlapping suggestions, or error
+    fn suggestions(&self, _ast: &File, _content: &str) -> AppResult<Vec<Suggestion>> {
         Ok(Vec::new())
     }
 }

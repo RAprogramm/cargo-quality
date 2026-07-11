@@ -1,9 +1,13 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
+use crate::analyzer::TextEdit;
+
 /// Represents a single code change.
 ///
-/// Stores the location and content of a proposed modification.
+/// Stores the location and content of a proposed modification for display, and
+/// the underlying [`TextEdit`] so the same change can be applied through the
+/// shared fix engine.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiffEntry {
     pub line:        usize,
@@ -11,7 +15,8 @@ pub struct DiffEntry {
     pub original:    String,
     pub modified:    String,
     pub description: String,
-    pub import:      Option<String>
+    pub import:      Option<String>,
+    pub edit:        TextEdit
 }
 
 /// Diff results for a single file.
@@ -134,7 +139,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         };
 
         assert_eq!(entry.line, 10);
@@ -157,7 +163,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         };
 
         diff.add_entry(entry);
@@ -182,7 +189,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         };
 
         file_diff.add_entry(entry);
@@ -212,7 +220,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         });
 
         let mut file2 = FileDiff::new("file2.rs".to_string());
@@ -222,7 +231,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         });
 
         result.add_file(file1);

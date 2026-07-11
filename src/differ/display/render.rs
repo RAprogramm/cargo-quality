@@ -334,7 +334,10 @@ fn render_footer(lines: &mut Vec<String>, max_width: &mut usize, color: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::differ::types::{DiffEntry, FileDiff};
+    use crate::{
+        analyzer::TextEdit,
+        differ::types::{DiffEntry, FileDiff}
+    };
 
     #[test]
     fn test_render_file_block_empty() {
@@ -354,7 +357,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         });
 
         let rendered = render_file_block(&file, false);
@@ -370,7 +374,8 @@ mod tests {
             original:    "std::fs::read()".to_string(),
             modified:    "read()".to_string(),
             description: "Use import".to_string(),
-            import:      Some("use std::fs::read;".to_string())
+            import:      Some("use std::fs::read;".to_string()),
+            edit:        TextEdit::default()
         });
 
         let rendered = render_file_block(&file, false);
@@ -387,7 +392,8 @@ mod tests {
             original:    "old1".to_string(),
             modified:    "new1".to_string(),
             description: "desc1".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         });
 
         file.add_entry(DiffEntry {
@@ -396,7 +402,8 @@ mod tests {
             original:    "old2".to_string(),
             modified:    "new2".to_string(),
             description: "desc2".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         });
 
         let rendered = render_file_block(&file, false);

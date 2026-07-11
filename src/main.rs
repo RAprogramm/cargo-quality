@@ -583,12 +583,12 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
             let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
             let ast = syn::parse_file(&content).map_err(ParseError::from)?;
 
-            let mut edits = Vec::new();
+            let mut suggestions = Vec::new();
             for analyzer in &analyzers {
-                edits.extend(analyzer.edits(&ast, &content)?);
+                suggestions.extend(analyzer.suggestions(&ast, &content)?);
             }
 
-            let fixed = edits.iter().filter(|edit| !edit.range.is_empty()).count();
+            let fixed = suggestions.len();
             if fixed == 0 {
                 continue;
             }
@@ -598,7 +598,7 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
                 continue;
             }
 
-            let updated = fixer::apply_edits(&content, edits);
+            let updated = fixer::apply_suggestions(&content, &suggestions);
             fs::write(&file_path, updated).map_err(IoError::from)?;
             println!("Fixed {} issues in {}", fixed, file_path.display());
         }
