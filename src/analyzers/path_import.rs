@@ -15,10 +15,7 @@ use std::collections::{HashMap, HashSet};
 use masterror::AppResult;
 use syn::{ExprPath, File, Path, spanned::Spanned, visit::Visit};
 
-use crate::{
-    analyzer::{AnalysisResult, Analyzer, Fix, Issue, TextEdit},
-    fixer::import_insertion_offset
-};
+use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue, Suggestion, TextEdit};
 
 /// Analyzer for detecting path separators that should be imports.
 ///
@@ -168,28 +165,16 @@ impl Analyzer for PathImportAnalyzer {
         })
     }
 
-    fn edits(&self, ast: &File, content: &str) -> AppResult<Vec<TextEdit>> {
+    fn suggestions(&self, ast: &File, _content: &str) -> AppResult<Vec<Suggestion>> {
         let blocked = Self::colliding_idents(ast);
 
-        let mut visitor = EditVisitor {
-            edits: Vec::new(),
-            imports: Vec::new(),
-            seen: HashSet::new(),
+        let mut visitor = SuggestionVisitor {
+            suggestions: Vec::new(),
             blocked
         };
         visitor.visit_file(ast);
 
-        if !visitor.imports.is_empty() {
-            let offset = import_insertion_offset(content);
-            let mut block = visitor.imports.join("\n");
-            block.push('\n');
-            visitor.edits.push(TextEdit {
-                range:       offset..offset,
-                replacement: block
-            });
-        }
-
-        Ok(visitor.edits)
+        Ok(visitor.suggestions)
     }
 }
 
@@ -308,22 +293,19 @@ impl<'ast> syn::visit::Visit<'ast> for PathVisitor {
     }
 }
 
-/// Produces byte-range edits that drop the module prefix of qualified paths and
-/// collects the `use` statements to insert.
+/// Produces a fix suggestion for each qualified path that should be imported.
 ///
 /// For each expression path that
 /// [`PathImportAnalyzer::should_extract_to_import`] approves and whose final
-/// identifier is not a short-name collision, an edit deletes the leading
-/// segments (`std::fs::` in `std::fs::read`), leaving the final segment and its
-/// generic arguments untouched, and a matching `use` is queued for insertion.
-struct EditVisitor {
-    edits:   Vec<TextEdit>,
-    imports: Vec<String>,
-    seen:    HashSet<String>,
-    blocked: HashSet<String>
+/// identifier is not a short-name collision, a suggestion carries an edit
+/// deleting the leading segments (`std::fs::` in `std::fs::read`), leaving the
+/// final segment and its generic arguments untouched, plus the matching `use`.
+struct SuggestionVisitor {
+    suggestions: Vec<Suggestion>,
+    blocked:     HashSet<String>
 }
 
-impl<'ast> Visit<'ast> for EditVisitor {
+impl<'ast> Visit<'ast> for SuggestionVisitor {
     fn visit_expr_path(&mut self, node: &'ast ExprPath) {
         if node.qself.is_none()
             && PathImportAnalyzer::should_extract_to_import(&node.path)
@@ -335,13 +317,13 @@ impl<'ast> Visit<'ast> for EditVisitor {
 
             if last_start > path_start {
                 let path_str = path_to_string(&node.path);
-                if self.seen.insert(path_str.clone()) {
-                    self.imports.push(format!("use {};", path_str));
-                }
 
-                self.edits.push(TextEdit {
-                    range:       path_start..last_start,
-                    replacement: String::new()
+                self.suggestions.push(Suggestion {
+                    edit:   TextEdit {
+                        range:       path_start..last_start,
+                        replacement: String::new()
+                    },
+                    import: Some(format!("use {};", path_str))
                 });
             }
         }
@@ -489,9 +471,9 @@ mod tests {
     fn apply_fix(content: &str) -> (usize, String) {
         let analyzer = PathImportAnalyzer::new();
         let ast = syn::parse_file(content).unwrap();
-        let edits = analyzer.edits(&ast, content).unwrap();
-        let fixed = edits.iter().filter(|edit| !edit.range.is_empty()).count();
-        let output = crate::fixer::apply_edits(content, edits);
+        let suggestions = analyzer.suggestions(&ast, content).unwrap();
+        let fixed = suggestions.len();
+        let output = crate::fixer::apply_suggestions(content, &suggestions);
         (fixed, output)
     }
 

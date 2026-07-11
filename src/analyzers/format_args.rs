@@ -312,7 +312,7 @@ mod tests {
             }
         };
 
-        let edits = analyzer.edits(&code, "").unwrap();
+        let edits = analyzer.suggestions(&code, "").unwrap();
         assert!(edits.is_empty());
     }
 

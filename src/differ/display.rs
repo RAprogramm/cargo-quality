@@ -368,7 +368,7 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<DiffResul
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::differ::types::DiffEntry;
+    use crate::{analyzer::TextEdit, differ::types::DiffEntry};
 
     #[test]
     fn test_show_summary_empty() {
@@ -393,7 +393,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         });
 
         result.add_file(file);
@@ -411,7 +412,8 @@ mod tests {
             original:    "old".to_string(),
             modified:    "new".to_string(),
             description: "desc".to_string(),
-            import:      None
+            import:      None,
+            edit:        TextEdit::default()
         });
 
         result.add_file(file);

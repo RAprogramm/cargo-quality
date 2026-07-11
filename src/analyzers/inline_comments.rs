@@ -402,7 +402,7 @@ impl Foo {
 }"#;
         let code = syn::parse_str(content).unwrap();
 
-        let edits = analyzer.edits(&code, content).unwrap();
+        let edits = analyzer.suggestions(&code, content).unwrap();
         assert!(edits.is_empty());
     }
 

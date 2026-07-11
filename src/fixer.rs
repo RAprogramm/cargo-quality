@@ -8,7 +8,49 @@
 //! comments, blank lines, and the author's formatting are preserved — unlike
 //! reprinting the AST, which drops comments and reformats the whole file.
 
-use crate::analyzer::TextEdit;
+use std::collections::HashSet;
+
+use crate::analyzer::{Suggestion, TextEdit};
+
+/// Applies fix suggestions to the source, deduplicating their imports.
+///
+/// Collects each suggestion's rewrite edit, inserts every distinct required
+/// import once at the top of the file, and applies them via [`apply_edits`].
+/// Comments, blank lines, and formatting outside the edits are preserved.
+///
+/// # Arguments
+///
+/// * `source` - Original source code
+/// * `suggestions` - Suggestions to apply
+///
+/// # Returns
+///
+/// The edited source
+pub fn apply_suggestions(source: &str, suggestions: &[Suggestion]) -> String {
+    let mut edits: Vec<TextEdit> = suggestions.iter().map(|s| s.edit.clone()).collect();
+
+    let mut seen = HashSet::new();
+    let mut imports = Vec::new();
+    for suggestion in suggestions {
+        if let Some(import) = &suggestion.import
+            && seen.insert(import.clone())
+        {
+            imports.push(import.clone());
+        }
+    }
+
+    if !imports.is_empty() {
+        let offset = import_insertion_offset(source);
+        let mut block = imports.join("\n");
+        block.push('\n');
+        edits.push(TextEdit {
+            range:       offset..offset,
+            replacement: block
+        });
+    }
+
+    apply_edits(source, edits)
+}
 
 /// Applies non-overlapping text edits to the source.
 ///
