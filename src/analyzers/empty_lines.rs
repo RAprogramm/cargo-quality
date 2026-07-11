@@ -7,6 +7,8 @@
 //! which violate the Single Responsibility Principle by suggesting the
 //! function does multiple things.
 
+use std::collections::HashSet;
+
 use masterror::AppResult;
 use syn::{File, ImplItem, Item, ItemFn, ItemImpl, spanned::Spanned, visit::Visit};
 
@@ -50,7 +52,12 @@ impl EmptyLinesAnalyzer {
     /// # Returns
     ///
     /// Vector of issues found
-    fn check_block(start_line: usize, end_line: usize, lines: &[&str]) -> Vec<Issue> {
+    fn check_block(
+        start_line: usize,
+        end_line: usize,
+        lines: &[&str],
+        excluded: &HashSet<usize>
+    ) -> Vec<Issue> {
         let mut issues = Vec::new();
 
         if start_line >= end_line {
@@ -58,6 +65,10 @@ impl EmptyLinesAnalyzer {
         }
 
         for line_num in start_line..end_line {
+            if excluded.contains(&line_num) {
+                continue;
+            }
+
             let idx = line_num.saturating_sub(1);
 
             let Some(line) = lines.get(idx) else {
@@ -145,12 +156,12 @@ impl EmptyLinesAnalyzer {
     ///
     /// * `func` - Function item to analyze
     /// * `lines` - Source code split into lines
-    fn check_function(func: &ItemFn, lines: &[&str]) -> Vec<Issue> {
+    fn check_function(func: &ItemFn, lines: &[&str], excluded: &HashSet<usize>) -> Vec<Issue> {
         let span = func.block.span();
         let start_line = span.start().line;
         let end_line = span.end().line;
 
-        Self::check_block(start_line, end_line, lines)
+        Self::check_block(start_line, end_line, lines, excluded)
     }
 
     /// Check impl block methods for empty lines.
@@ -159,7 +170,11 @@ impl EmptyLinesAnalyzer {
     ///
     /// * `impl_block` - Impl block to analyze
     /// * `lines` - Source code split into lines
-    fn check_impl_block(impl_block: &ItemImpl, lines: &[&str]) -> Vec<Issue> {
+    fn check_impl_block(
+        impl_block: &ItemImpl,
+        lines: &[&str],
+        excluded: &HashSet<usize>
+    ) -> Vec<Issue> {
         let mut issues = Vec::new();
 
         for item in &impl_block.items {
@@ -168,7 +183,7 @@ impl EmptyLinesAnalyzer {
                 let start_line = span.start().line;
                 let end_line = span.end().line;
 
-                issues.extend(Self::check_block(start_line, end_line, lines));
+                issues.extend(Self::check_block(start_line, end_line, lines, excluded));
             }
         }
 
@@ -183,9 +198,11 @@ impl Analyzer for EmptyLinesAnalyzer {
 
     fn analyze(&self, ast: &File, content: &str) -> AppResult<AnalysisResult> {
         let lines: Vec<&str> = content.lines().collect();
+        let excluded = crate::analyzers::multiline_literal_lines(ast);
         let mut visitor = FunctionVisitor {
-            issues: Vec::new(),
-            lines:  &lines
+            issues:   Vec::new(),
+            lines:    &lines,
+            excluded: &excluded
         };
         visitor.visit_file(ast);
 
@@ -201,19 +218,22 @@ impl Analyzer for EmptyLinesAnalyzer {
 }
 
 struct FunctionVisitor<'a> {
-    issues: Vec<Issue>,
-    lines:  &'a [&'a str]
+    issues:   Vec<Issue>,
+    lines:    &'a [&'a str],
+    excluded: &'a HashSet<usize>
 }
 
 impl<'ast, 'a> Visit<'ast> for FunctionVisitor<'a> {
     fn visit_item(&mut self, node: &'ast Item) {
         match node {
             Item::Fn(func) => {
-                let func_issues = EmptyLinesAnalyzer::check_function(func, self.lines);
+                let func_issues =
+                    EmptyLinesAnalyzer::check_function(func, self.lines, self.excluded);
                 self.issues.extend(func_issues);
             }
             Item::Impl(impl_block) => {
-                let impl_issues = EmptyLinesAnalyzer::check_impl_block(impl_block, self.lines);
+                let impl_issues =
+                    EmptyLinesAnalyzer::check_impl_block(impl_block, self.lines, self.excluded);
                 self.issues.extend(impl_issues);
             }
             _ => {}
@@ -236,6 +256,16 @@ mod tests {
     fn test_analyzer_name() {
         let analyzer = EmptyLinesAnalyzer::new();
         assert_eq!(analyzer.name(), "empty_lines");
+    }
+
+    #[test]
+    fn test_ignore_blank_line_inside_string_literal() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content = "fn f() {\n    let s = \"line one\n\nline two\";\n    let _ = s;\n}";
+        let code = syn::parse_str(content).unwrap();
+
+        let result = analyzer.analyze(&code, content).unwrap();
+        assert_eq!(result.issues.len(), 0);
     }
 
     #[test]

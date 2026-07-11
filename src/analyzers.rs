@@ -120,12 +120,58 @@ pub mod format_args;
 pub mod inline_comments;
 pub mod path_import;
 
+use std::collections::HashSet;
+
 pub use empty_lines::EmptyLinesAnalyzer;
 pub use format_args::FormatArgsAnalyzer;
 pub use inline_comments::InlineCommentsAnalyzer;
 pub use path_import::PathImportAnalyzer;
+use syn::{File, Lit, visit::Visit};
 
 use crate::analyzer::Analyzer;
+
+/// Collects line numbers that lie inside multi-line literals.
+///
+/// Line-based analyzers scan raw source text, so a `//` or a blank line inside
+/// a multi-line string literal would otherwise be mistaken for a comment or an
+/// empty function line. This returns every continuation line of such literals
+/// (the lines after the opening one, up to and including the closing one) so
+/// callers can skip them.
+///
+/// # Arguments
+///
+/// * `ast` - Parsed file to scan for literals
+///
+/// # Returns
+///
+/// Set of 1-based line numbers that fall inside a multi-line literal
+pub(crate) fn multiline_literal_lines(ast: &File) -> HashSet<usize> {
+    struct LitVisitor {
+        lines: HashSet<usize>
+    }
+
+    impl<'ast> Visit<'ast> for LitVisitor {
+        fn visit_lit(&mut self, lit: &'ast Lit) {
+            let span = lit.span();
+            let start = span.start().line;
+            let end = span.end().line;
+
+            if end > start {
+                for line in (start + 1)..=end {
+                    self.lines.insert(line);
+                }
+            }
+
+            syn::visit::visit_lit(self, lit);
+        }
+    }
+
+    let mut visitor = LitVisitor {
+        lines: HashSet::new()
+    };
+    visitor.visit_file(ast);
+    visitor.lines
+}
 
 /// Returns all built-in analyzers.
 ///
