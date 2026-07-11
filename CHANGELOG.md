@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Update changelog [skip ci] ([7abfe7c](https://github.com/RAprogramm/cargo-quality/commit/7abfe7c4b6f4e83a5a046739edcfda9e0cb5ef3f))
+
+## [0.3.0] - 2026-07-10
+
 ### CI/CD
 
 - Bump the github-actions group across 1 directory with 2 updates ([#52](https://github.com/RAprogramm/cargo-quality/issues/52)) ([8b0c350](https://github.com/RAprogramm/cargo-quality/commit/8b0c350b3a56a7b012fd14ff492128ad8d939780))
@@ -162,7 +168,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump the rust-dependencies group with 7 updates ([#26](https://github.com/RAprogramm/cargo-quality/issues/26)) ([0523797](https://github.com/RAprogramm/cargo-quality/commit/0523797e9ae1100d2eaa2ea42734ed7861cce35b))
 
-[Unreleased]: https://github.com/RAprogramm/cargo-quality/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/RAprogramm/cargo-quality/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/RAprogramm/cargo-quality/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.2...v0.1.5
 [0.1.2]: https://github.com/RAprogramm/cargo-quality/compare/v0.1.1...v0.1.2
