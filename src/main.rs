@@ -689,6 +689,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_install_fish_completions_uses_qual_subcommand() {
+        let temp_dir = TempDir::new().unwrap();
+        let comp_file = temp_dir.path().join("cargo.fish");
+
+        install_fish_completions(&comp_file).unwrap();
+
+        let content = fs::read_to_string(&comp_file).unwrap();
+        assert!(content.contains("__fish_seen_subcommand_from qual"));
+        assert!(!content.contains("__fish_seen_subcommand_from quality"));
+    }
+
+    #[test]
     fn test_check_quality() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
