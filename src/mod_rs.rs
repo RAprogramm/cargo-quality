@@ -417,7 +417,10 @@ mod tests {
 
         let applied = fix_all_mod_rs(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(applied, 0);
-        assert_eq!(read_to_string(temp.path().join("foo.rs")).unwrap(), "KEEP ME");
+        assert_eq!(
+            read_to_string(temp.path().join("foo.rs")).unwrap(),
+            "KEEP ME"
+        );
         assert!(subdir.join("mod.rs").exists());
     }
 
