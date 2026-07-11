@@ -270,28 +270,28 @@ fn get_completion_config(shell_name: &str) -> Option<(Shell, PathBuf, &'static s
 /// `AppResult<()>` - Ok if installation succeeds
 fn install_fish_completions(comp_file: &std::path::Path) -> AppResult<()> {
     let fish_completions = r#"# Completion for cargo qual subcommand
-complete -c cargo -n "__fish_seen_subcommand_from quality" -s h -l help -d 'Print help'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "check" -d 'Check code quality'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fix" -d 'Fix quality issues'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "format" -d 'Format code'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "fmt" -d 'Run cargo +nightly fmt'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "diff" -d 'Show proposed changes'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "help" -d 'Display help'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "completions" -d 'Generate completions'
-complete -c cargo -n "__fish_seen_subcommand_from quality" -f -a "setup" -d 'Setup completions'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -s h -l help -d 'Print help'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "check" -d 'Check code quality'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "fix" -d 'Fix quality issues'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "format" -d 'Format code'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "fmt" -d 'Run cargo +nightly fmt'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "diff" -d 'Show proposed changes'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "help" -d 'Display help'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "completions" -d 'Generate completions'
+complete -c cargo -n "__fish_seen_subcommand_from qual" -f -a "setup" -d 'Setup completions'
 
 # Diff options
-complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from diff" -s s -l summary -d 'Brief summary'
-complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from diff" -s i -l interactive -d 'Interactive mode'
+complete -c cargo -n "__fish_seen_subcommand_from qual; and __fish_seen_subcommand_from diff" -s s -l summary -d 'Brief summary'
+complete -c cargo -n "__fish_seen_subcommand_from qual; and __fish_seen_subcommand_from diff" -s i -l interactive -d 'Interactive mode'
 
 # Check options
-complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from check" -s v -l verbose -d 'Detailed output'
+complete -c cargo -n "__fish_seen_subcommand_from qual; and __fish_seen_subcommand_from check" -s v -l verbose -d 'Detailed output'
 
 # Fix options
-complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from fix" -s d -l dry-run -d 'Dry run'
+complete -c cargo -n "__fish_seen_subcommand_from qual; and __fish_seen_subcommand_from fix" -s d -l dry-run -d 'Dry run'
 
 # Completions options
-complete -c cargo -n "__fish_seen_subcommand_from quality; and __fish_seen_subcommand_from completions" -f -a "bash fish zsh powershell elvish"
+complete -c cargo -n "__fish_seen_subcommand_from qual; and __fish_seen_subcommand_from completions" -f -a "bash fish zsh powershell elvish"
 "#;
     fs::write(comp_file, fish_completions).map_err(IoError::from)?;
     Ok(())
@@ -687,6 +687,18 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+
+    #[test]
+    fn test_install_fish_completions_uses_qual_subcommand() {
+        let temp_dir = TempDir::new().unwrap();
+        let comp_file = temp_dir.path().join("cargo.fish");
+
+        install_fish_completions(&comp_file).unwrap();
+
+        let content = fs::read_to_string(&comp_file).unwrap();
+        assert!(content.contains("__fish_seen_subcommand_from qual"));
+        assert!(!content.contains("__fish_seen_subcommand_from quality"));
+    }
 
     #[test]
     fn test_check_quality() {
