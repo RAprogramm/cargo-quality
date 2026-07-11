@@ -7,7 +7,7 @@
 //! consistent standards across Rust projects. All rules are embedded in the
 //! binary, ensuring uniform analysis across your entire codebase.
 //!
-//! # Overview
+//! # Modules
 //!
 //! This library provides:
 //!
