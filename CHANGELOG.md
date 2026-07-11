@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Update changelog [skip ci] ([fcca9b2](https://github.com/RAprogramm/cargo-quality/commit/fcca9b23b3c3c97f685917d4cef1463e3ea0734b))
 - Update changelog [skip ci] ([1e8d65e](https://github.com/RAprogramm/cargo-quality/commit/1e8d65ef0ab2f67ac2e3934bec2046160f56f761))
 - Update changelog [skip ci] ([b073009](https://github.com/RAprogramm/cargo-quality/commit/b0730091a45d31272060fef96a65bc8196a693f5))
 - Update changelog [skip ci] ([bd17245](https://github.com/RAprogramm/cargo-quality/commit/bd172458af491c31acd1f1e415fa780e0aa42ec8))
