@@ -93,7 +93,7 @@ runs:
         echo "$OUTPUT"
 
         count_for() {
-          echo "$OUTPUT" | grep -oP "\[$1\] - \K\d+" | head -1
+          { echo "$OUTPUT" | grep -oP "\[$1\] - \K\d+" || true; } | head -1
         }
 
         PATH_IMPORT=$(count_for path_import); PATH_IMPORT=${PATH_IMPORT:-0}
@@ -102,7 +102,7 @@ runs:
         INLINE_COMMENTS=$(count_for inline_comments); INLINE_COMMENTS=${INLINE_COMMENTS:-0}
         MOD_RS=$(count_for mod_rs); MOD_RS=${MOD_RS:-0}
 
-        TOTAL=$(echo "$OUTPUT" | grep -oP 'Total issues:\s*\K\d+' | head -1)
+        TOTAL=$({ echo "$OUTPUT" | grep -oP 'Total issues:\s*\K\d+' || true; } | head -1)
         TOTAL=${TOTAL:-0}
 
         echo "total_issues=$TOTAL" >> $GITHUB_OUTPUT
