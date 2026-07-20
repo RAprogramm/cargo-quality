@@ -17,7 +17,7 @@ rust-version = "1.96"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
-syn = { version = "2", features = [
+syn = { version = "3", features = [
   "full",
   "extra-traits",
   "visit",
