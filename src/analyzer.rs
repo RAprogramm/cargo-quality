@@ -41,12 +41,38 @@ pub struct TextEdit {
     pub replacement: String
 }
 
+/// A `use` statement insertion anchored to a specific byte offset.
+///
+/// The offset addresses the module that must receive the import — the top of
+/// the file for top-level rewrites, or the first item of an inline module for
+/// rewrites inside it — so the inserted name is always in scope at the rewrite
+/// site.
+///
+/// # Examples
+///
+/// ```
+/// use cargo_quality::analyzer::ImportEdit;
+///
+/// let import = ImportEdit {
+///     offset:    0,
+///     statement: "use std::fs::read;".to_string()
+/// };
+/// assert!(import.statement.starts_with("use "));
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportEdit {
+    /// Byte offset in the original source at which to insert the statement
+    pub offset:    usize,
+    /// The `use` statement to insert, without a trailing newline
+    pub statement: String
+}
+
 /// A single fixable change: one source edit plus any import it requires.
 ///
 /// Both the `fix` command and the diff/interactive flow are built from
 /// suggestions, so applying a change is identical everywhere: the [`edit`] is
-/// spliced into the source and the [`import`], if any, is inserted once
-/// (imports are deduplicated across the applied suggestions).
+/// spliced into the source and the [`import`], if any, is inserted once per
+/// target offset (imports are deduplicated across the applied suggestions).
 ///
 /// [`edit`]: Suggestion::edit
 /// [`import`]: Suggestion::import
@@ -55,7 +81,7 @@ pub struct Suggestion {
     /// The byte-range edit that performs the rewrite
     pub edit:   TextEdit,
     /// A `use` statement the rewrite depends on, if any
-    pub import: Option<String>
+    pub import: Option<ImportEdit>
 }
 
 /// Type of fix that can be applied to resolve an issue.
