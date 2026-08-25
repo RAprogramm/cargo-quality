@@ -379,23 +379,23 @@ fn write_entry(
             entry.analyzer.green()
         )?;
         writeln!(out, "{}", format!("Line {}:", entry.line).dimmed())?;
-        writeln!(out, "{}", format!("- {}", entry.original).red())?;
+        writeln!(out, "{}", format!("- {}", entry.preview.original).red())?;
 
-        if let Some(import) = &entry.import {
+        if let Some(import) = &entry.suggestion.import {
             writeln!(out, "{}", format!("+ {}", import.statement).green())?;
         }
 
-        writeln!(out, "{}", format!("+ {}", entry.modified).green())?;
+        writeln!(out, "{}", format!("+ {}", entry.preview.modified).green())?;
     } else {
         writeln!(out, "[{}/{}] {}", idx + 1, total, entry.analyzer)?;
         writeln!(out, "Line {}:", entry.line)?;
-        writeln!(out, "- {}", entry.original)?;
+        writeln!(out, "- {}", entry.preview.original)?;
 
-        if let Some(import) = &entry.import {
+        if let Some(import) = &entry.suggestion.import {
             writeln!(out, "+ {}", import.statement)?;
         }
 
-        writeln!(out, "+ {}", entry.modified)?;
+        writeln!(out, "+ {}", entry.preview.modified)?;
     }
     out.write_all(b"\n")
 }
@@ -426,7 +426,10 @@ fn write_selected_total(out: &mut impl Write, selected: &DiffResult) -> io::Resu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{analyzer::TextEdit, differ::types::DiffEntry};
+    use crate::{
+        analyzer::{Suggestion, TextEdit},
+        differ::types::{ChangePreview, DiffEntry}
+    };
 
     #[test]
     fn test_show_summary_empty() {
@@ -446,13 +449,17 @@ mod tests {
         let mut file = FileDiff::new("test.rs".to_string());
 
         file.add_entry(DiffEntry {
-            line:        1,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       1,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         });
 
         result.add_file(file);
@@ -465,13 +472,17 @@ mod tests {
         let mut file = FileDiff::new("test.rs".to_string());
 
         file.add_entry(DiffEntry {
-            line:        10,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       10,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         });
 
         result.add_file(file);

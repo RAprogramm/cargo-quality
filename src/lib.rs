@@ -54,10 +54,10 @@
 //!
 //! # Running All Analyzers
 //!
-//! Use [`analyzers::get_analyzers()`] to get all built-in analyzers:
+//! Use [`analyzers::default_analyzers()`] to get all built-in analyzers:
 //!
 //! ```rust
-//! use cargo_quality::{analyzer::Analyzer, analyzers::get_analyzers};
+//! use cargo_quality::{analyzer::Analyzer, analyzers::default_analyzers};
 //!
 //! let code = r#"
 //!     fn main() {
@@ -66,7 +66,7 @@
 //! "#;
 //! let ast = syn::parse_file(code).unwrap();
 //!
-//! for analyzer in get_analyzers() {
+//! for analyzer in default_analyzers() {
 //!     let result = analyzer.analyze(&ast, code).unwrap();
 //!     println!("[{}] {} issues", analyzer.name(), result.issues.len());
 //! }

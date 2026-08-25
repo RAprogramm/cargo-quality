@@ -37,6 +37,11 @@ pub struct RenderedFile {
 }
 
 impl RenderedFile {
+    /// Minimum space between columns in grid layout.
+    pub const COLUMN_GAP: usize = 4;
+    /// Minimum width for a file column to be considered viable.
+    pub const MIN_WIDTH: usize = 40;
+
     /// Returns the number of lines in the rendered output.
     ///
     /// # Returns

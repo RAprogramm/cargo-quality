@@ -21,9 +21,9 @@
 //! Get all analyzers:
 //!
 //! ```rust
-//! use cargo_quality::analyzers::get_analyzers;
+//! use cargo_quality::analyzers::default_analyzers;
 //!
-//! let analyzers = get_analyzers();
+//! let analyzers = default_analyzers();
 //! assert_eq!(analyzers.len(), 4);
 //! ```
 //!
@@ -189,16 +189,16 @@ pub(crate) fn multiline_literal_lines(ast: &File) -> HashSet<usize> {
 /// # Examples
 ///
 /// ```rust
-/// use cargo_quality::{analyzer::Analyzer, analyzers::get_analyzers};
+/// use cargo_quality::{analyzer::Analyzer, analyzers::default_analyzers};
 ///
-/// let analyzers = get_analyzers();
+/// let analyzers = default_analyzers();
 /// assert_eq!(analyzers.len(), 4);
 ///
 /// for analyzer in &analyzers {
 ///     println!("Analyzer: {}", analyzer.name());
 /// }
 /// ```
-pub fn get_analyzers() -> Vec<Box<dyn Analyzer>> {
+pub fn default_analyzers() -> Vec<Box<dyn Analyzer>> {
     vec![
         Box::new(PathImportAnalyzer::new()),
         Box::new(FormatArgsAnalyzer::new()),
@@ -212,14 +212,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_analyzers() {
-        let analyzers = get_analyzers();
+    fn test_default_analyzers() {
+        let analyzers = default_analyzers();
         assert_eq!(analyzers.len(), 4);
     }
 
     #[test]
     fn test_analyzer_names() {
-        let analyzers = get_analyzers();
+        let analyzers = default_analyzers();
         let names: Vec<&str> = analyzers.iter().map(|a| a.name()).collect();
 
         assert!(names.contains(&"path_import"));

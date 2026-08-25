@@ -5,7 +5,7 @@ use std::fs;
 
 use masterror::AppResult;
 
-use super::types::{DiffEntry, FileDiff};
+use super::types::{ChangePreview, DiffEntry, FileDiff};
 use crate::{
     analyzer::{Analyzer, Suggestion},
     error::{IoError, ParseError}
@@ -27,8 +27,8 @@ use crate::{
 /// # Examples
 ///
 /// ```no_run
-/// use cargo_quality::{analyzers::get_analyzers, differ::generate_diff};
-/// let diff = generate_diff("src/main.rs", &get_analyzers()).unwrap();
+/// use cargo_quality::{analyzers::default_analyzers, differ::generate_diff};
+/// let diff = generate_diff("src/main.rs", &default_analyzers()).unwrap();
 /// ```
 pub fn generate_diff(file_path: &str, analyzers: &[Box<dyn Analyzer>]) -> AppResult<FileDiff> {
     let content = fs::read_to_string(file_path).map_err(IoError::from)?;
@@ -86,11 +86,12 @@ fn entry_from_suggestion(analyzer: &str, content: &str, suggestion: Suggestion) 
     DiffEntry {
         line,
         analyzer: analyzer.to_string(),
-        original,
-        modified,
-        description: format!("{} fix", analyzer),
-        import: suggestion.import,
-        edit: suggestion.edit
+        preview: ChangePreview {
+            original,
+            modified,
+            description: format!("{} fix", analyzer)
+        },
+        suggestion
     }
 }
 
@@ -99,7 +100,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::analyzers::get_analyzers;
+    use crate::analyzers::default_analyzers;
 
     #[test]
     fn test_generate_diff_integration() {
@@ -111,7 +112,7 @@ mod tests {
         )
         .unwrap();
 
-        let analyzers = get_analyzers();
+        let analyzers = default_analyzers();
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
 
         assert!(result.is_ok());
@@ -123,7 +124,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.rs");
         std::fs::write(&file_path, "fn main() {}").unwrap();
 
-        let analyzers = get_analyzers();
+        let analyzers = default_analyzers();
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
 
         assert!(result.is_ok());
@@ -135,7 +136,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.rs");
         std::fs::write(&file_path, "fn main() { invalid syntax +++").unwrap();
 
-        let analyzers = get_analyzers();
+        let analyzers = default_analyzers();
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers);
 
         assert!(result.is_err());
@@ -151,7 +152,7 @@ mod tests {
         )
         .unwrap();
 
-        let analyzers = get_analyzers();
+        let analyzers = default_analyzers();
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers).unwrap();
 
         assert!(
@@ -170,7 +171,7 @@ mod tests {
         )
         .unwrap();
 
-        let analyzers = get_analyzers();
+        let analyzers = default_analyzers();
         let result = generate_diff(file_path.to_str().unwrap(), &analyzers).unwrap();
 
         for entry in &result.entries {

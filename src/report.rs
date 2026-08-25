@@ -12,7 +12,7 @@ use console::measure_text_width;
 use owo_colors::OwoColorize;
 use terminal_size::{Width, terminal_size};
 
-use crate::analyzer::AnalysisResult;
+use crate::{analyzer::AnalysisResult, differ::display::types::RenderedFile};
 
 /// Minimum space between columns in grid layout.
 const COLUMN_GAP: usize = 4;
@@ -23,11 +23,8 @@ const MIN_ANALYZER_WIDTH: usize = 40;
 /// Maximum width for an analyzer column to enable multi-column layout.
 const MAX_ANALYZER_WIDTH: usize = 80;
 
-/// Rendered analyzer block for grid layout.
-struct RenderedAnalyzer {
-    lines: Vec<String>,
-    width: usize
-}
+/// Rendered analyzer block for grid layout, sharing the rendered-block shape.
+type RenderedAnalyzer = RenderedFile;
 
 /// Renders a single analyzer block with issues.
 fn render_analyzer_block(

@@ -5,12 +5,6 @@ use std::io::{self, BufWriter, Write};
 
 use super::{formatting::pad_to_width, types::RenderedFile};
 
-/// Minimum space between columns in grid layout.
-pub const COLUMN_GAP: usize = 4;
-
-/// Minimum width for a file column to be considered viable.
-pub const MIN_FILE_WIDTH: usize = 40;
-
 /// Calculates optimal number of columns for grid layout.
 ///
 /// Determines how many file columns can fit horizontally based on terminal
@@ -79,11 +73,12 @@ pub fn calculate_columns(files: &[RenderedFile], term_width: usize) -> usize {
         .iter()
         .map(|f| f.width)
         .max()
-        .unwrap_or(MIN_FILE_WIDTH)
-        .max(MIN_FILE_WIDTH);
+        .unwrap_or(RenderedFile::MIN_WIDTH)
+        .max(RenderedFile::MIN_WIDTH);
 
     for cols in (1..=files.len()).rev() {
-        let total_width = cols * max_file_width + (cols.saturating_sub(1)) * COLUMN_GAP;
+        let total_width =
+            cols * max_file_width + (cols.saturating_sub(1)) * RenderedFile::COLUMN_GAP;
 
         if total_width <= term_width {
             return cols;
@@ -168,13 +163,14 @@ fn write_grid(out: &mut impl Write, files: &[RenderedFile], columns: usize) -> i
         .iter()
         .map(|f| f.width)
         .max()
-        .unwrap_or(MIN_FILE_WIDTH);
+        .unwrap_or(RenderedFile::MIN_WIDTH);
 
     for chunk in files.chunks(columns) {
         let max_lines = chunk.iter().map(|f| f.line_count()).max().unwrap_or(0);
 
         for row_idx in 0..max_lines {
-            let mut row_output = String::with_capacity(columns * (col_width + COLUMN_GAP));
+            let mut row_output =
+                String::with_capacity(columns * (col_width + RenderedFile::COLUMN_GAP));
 
             for (col_idx, file) in chunk.iter().enumerate() {
                 let line = file.lines.get(row_idx).map(String::as_str).unwrap_or("");
@@ -183,7 +179,7 @@ fn write_grid(out: &mut impl Write, files: &[RenderedFile], columns: usize) -> i
                 row_output.push_str(&padded);
 
                 if col_idx < chunk.len() - 1 {
-                    row_output.push_str(&" ".repeat(COLUMN_GAP));
+                    row_output.push_str(&" ".repeat(RenderedFile::COLUMN_GAP));
                 }
             }
 

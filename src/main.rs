@@ -31,7 +31,7 @@ use masterror::AppResult;
 
 use crate::{
     analyzer::{AnalysisResult, Fix, Issue},
-    analyzers::get_analyzers,
+    analyzers::default_analyzers,
     cli::{Command, QualityArgs, Shell},
     differ::{DiffResult, apply_diff, generate_diff, show_full, show_interactive, show_summary},
     error::{IoError, ParseError},
@@ -141,7 +141,7 @@ fn setup_completions() -> AppResult<()> {
     let stdout = io::stdout();
     let mut out = stdout.lock();
 
-    let Some((shell, comp_dir, file_name)) = get_completion_config(&shell_name) else {
+    let Some((shell, comp_dir, file_name)) = completion_config(&shell_name) else {
         writeln!(out, "❌ Unsupported shell: {}", shell_name).map_err(IoError::from)?;
         out.write_all(
             b"Supported shells: bash, fish, zsh\n\nManual installation:\n  cargo qual completions <shell> > <completion-file>\n"
@@ -196,7 +196,7 @@ fn detect_shell() -> String {
 ///
 /// Home directory path or "~" if not found
 #[inline]
-fn get_home_dir() -> String {
+fn home_dir() -> String {
     use std::env;
 
     env::var("HOME").unwrap_or_else(|_| String::from("~"))
@@ -210,12 +210,12 @@ fn get_home_dir() -> String {
 ///
 /// Config directory path
 #[inline]
-fn get_xdg_config_home() -> PathBuf {
+fn xdg_config_home() -> PathBuf {
     use std::env;
 
     env::var("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(get_home_dir()).join(".config"))
+        .unwrap_or_else(|_| PathBuf::from(home_dir()).join(".config"))
 }
 
 /// Gets XDG_DATA_HOME directory.
@@ -226,12 +226,12 @@ fn get_xdg_config_home() -> PathBuf {
 ///
 /// Data directory path
 #[inline]
-fn get_xdg_data_home() -> PathBuf {
+fn xdg_data_home() -> PathBuf {
     use std::env;
 
     env::var("XDG_DATA_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(get_home_dir()).join(".local").join("share"))
+        .unwrap_or_else(|_| PathBuf::from(home_dir()).join(".local").join("share"))
 }
 
 /// Gets completion configuration for a shell.
@@ -245,20 +245,18 @@ fn get_xdg_data_home() -> PathBuf {
 /// # Returns
 ///
 /// Option<(Shell, PathBuf, &'static str)> - Shell type, directory, filename
-fn get_completion_config(shell_name: &str) -> Option<(Shell, PathBuf, &'static str)> {
+fn completion_config(shell_name: &str) -> Option<(Shell, PathBuf, &'static str)> {
     match shell_name {
         "fish" => {
-            let dir = get_xdg_config_home().join("fish").join("completions");
+            let dir = xdg_config_home().join("fish").join("completions");
             Some((Shell::Fish, dir, "cargo.fish"))
         }
         "bash" => {
-            let dir = get_xdg_data_home()
-                .join("bash-completion")
-                .join("completions");
+            let dir = xdg_data_home().join("bash-completion").join("completions");
             Some((Shell::Bash, dir, "cargo-quality"))
         }
         "zsh" => {
-            let dir = get_xdg_data_home().join("zsh").join("site-functions");
+            let dir = xdg_data_home().join("zsh").join("site-functions");
             Some((Shell::Zsh, dir, "_cargo-quality"))
         }
         _ => None
@@ -409,7 +407,7 @@ fn check_quality(
     color: bool
 ) -> AppResult<bool> {
     let files = collect_rust_files(path)?;
-    let all_analyzers = get_analyzers();
+    let all_analyzers = default_analyzers();
 
     let analyzers: Vec<_> = if let Some(name) = analyzer_name {
         all_analyzers
@@ -509,7 +507,7 @@ fn report_unknown_analyzer(name: &str, include_mod_rs: bool) -> AppResult<()> {
     let mut err = BufWriter::new(stderr.lock());
 
     writeln!(err, "Unknown analyzer: {}. Available analyzers:", name).map_err(IoError::from)?;
-    for analyzer in get_analyzers() {
+    for analyzer in default_analyzers() {
         writeln!(err, "  - {}", analyzer.name()).map_err(IoError::from)?;
     }
     if include_mod_rs {
@@ -572,7 +570,7 @@ fn add_mod_rs_to_report(mod_rs_result: &ModRsResult, global_report: &mut GlobalR
 /// fix_quality("src/", false, Some("path_import")).unwrap();
 /// ```
 fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppResult<()> {
-    let all_analyzers = get_analyzers();
+    let all_analyzers = default_analyzers();
 
     let analyzers: Vec<_> = if let Some(name) = analyzer_name {
         all_analyzers
@@ -702,7 +700,7 @@ fn run_diff(
     color: bool
 ) -> AppResult<()> {
     let files = collect_rust_files(path)?;
-    let all_analyzers = get_analyzers();
+    let all_analyzers = default_analyzers();
 
     let analyzers: Vec<_> = if let Some(name) = analyzer_name {
         all_analyzers

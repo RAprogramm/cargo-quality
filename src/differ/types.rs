@@ -1,22 +1,30 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
-use crate::analyzer::{ImportEdit, TextEdit};
+use crate::analyzer::Suggestion;
+
+/// Before/after text of a proposed change for display.
+///
+/// Groups the human-facing strings of a diff entry: the affected line as it
+/// is, the line after the fix, and a short description of the change.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangePreview {
+    pub original:    String,
+    pub modified:    String,
+    pub description: String
+}
 
 /// Represents a single code change.
 ///
-/// Stores the location and content of a proposed modification for display, and
-/// the underlying [`TextEdit`] so the same change can be applied through the
-/// shared fix engine.
+/// Stores the location and preview text of a proposed modification for
+/// display, and the underlying [`Suggestion`] so the same change can be
+/// applied through the shared fix engine.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiffEntry {
-    pub line:        usize,
-    pub analyzer:    String,
-    pub original:    String,
-    pub modified:    String,
-    pub description: String,
-    pub import:      Option<ImportEdit>,
-    pub edit:        TextEdit
+    pub line:       usize,
+    pub analyzer:   String,
+    pub preview:    ChangePreview,
+    pub suggestion: Suggestion
 }
 
 /// Diff results for a single file.
@@ -130,17 +138,22 @@ impl Default for DiffResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analyzer::TextEdit;
 
     #[test]
     fn test_diff_entry_creation() {
         let entry = DiffEntry {
-            line:        10,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       10,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         };
 
         assert_eq!(entry.line, 10);
@@ -158,13 +171,17 @@ mod tests {
     fn test_file_diff_add_entry() {
         let mut diff = FileDiff::new("test.rs".to_string());
         let entry = DiffEntry {
-            line:        1,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       1,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         };
 
         diff.add_entry(entry);
@@ -184,13 +201,17 @@ mod tests {
         let mut file_diff = FileDiff::new("test.rs".to_string());
 
         let entry = DiffEntry {
-            line:        1,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       1,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         };
 
         file_diff.add_entry(entry);
@@ -215,24 +236,32 @@ mod tests {
 
         let mut file1 = FileDiff::new("file1.rs".to_string());
         file1.add_entry(DiffEntry {
-            line:        1,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       1,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         });
 
         let mut file2 = FileDiff::new("file2.rs".to_string());
         file2.add_entry(DiffEntry {
-            line:        1,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       1,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         });
 
         result.add_file(file1);
