@@ -19,7 +19,7 @@
 
 use std::{
     fs::{read_dir, remove_dir as remove_directory, rename},
-    io,
+    io::{self, BufWriter, Write},
     path::{Path, PathBuf}
 };
 
@@ -259,19 +259,26 @@ pub fn fix_all_mod_rs(path: &str) -> AppResult<usize> {
     let result = find_mod_rs_issues(path)?;
     let mut applied = 0;
 
+    let stderr = io::stderr();
+    let mut err = BufWriter::new(stderr.lock());
+
     for issue in result.issues {
         if issue.suggested.exists() {
-            eprintln!(
+            writeln!(
+                err,
                 "Skipping {}: target {} already exists",
                 issue.path.display(),
                 issue.suggested.display()
-            );
+            )
+            .map_err(IoError::from)?;
             continue;
         }
 
         fix_mod_rs(&issue)?;
         applied += 1;
     }
+
+    err.flush().map_err(IoError::from)?;
 
     Ok(applied)
 }

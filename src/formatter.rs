@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
-use std::process::Command;
+use std::{
+    io::{self, Write},
+    process::Command
+};
 
 use masterror::AppResult;
 
@@ -142,7 +145,10 @@ pub fn format_code() -> AppResult<()> {
     let status = command.status().map_err(IoError::from)?;
 
     if status.success() {
-        println!("Code formatted successfully");
+        io::stdout()
+            .lock()
+            .write_all(b"Code formatted successfully\n")
+            .map_err(IoError::from)?;
         Ok(())
     } else {
         Err(IoError::from(std::io::Error::other(format!(

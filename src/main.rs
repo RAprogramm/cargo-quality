@@ -21,7 +21,11 @@
 //! cargo qual format .
 //! ```
 
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    io::{self, BufWriter, Write},
+    path::PathBuf
+};
 
 use masterror::AppResult;
 
@@ -134,11 +138,15 @@ fn generate_completions(shell: Shell) {
 fn setup_completions() -> AppResult<()> {
     let shell_name = detect_shell();
 
+    let stdout = io::stdout();
+    let mut out = stdout.lock();
+
     let Some((shell, comp_dir, file_name)) = get_completion_config(&shell_name) else {
-        println!("❌ Unsupported shell: {}", shell_name);
-        println!("Supported shells: bash, fish, zsh");
-        println!("\nManual installation:");
-        println!("  cargo qual completions <shell> > <completion-file>");
+        writeln!(out, "❌ Unsupported shell: {}", shell_name).map_err(IoError::from)?;
+        out.write_all(
+            b"Supported shells: bash, fish, zsh\n\nManual installation:\n  cargo qual completions <shell> > <completion-file>\n"
+        )
+        .map_err(IoError::from)?;
         return Ok(());
     };
 
@@ -151,16 +159,15 @@ fn setup_completions() -> AppResult<()> {
         install_generated_completions(shell, &comp_file)?;
     }
 
-    println!(
-        "✓ {} completions installed to: {}",
+    writeln!(
+        out,
+        "✓ {} completions installed to: {}\n\nCompletions will be available in new {} sessions\nOr run: source {}",
+        shell_name,
+        comp_file.display(),
         shell_name,
         comp_file.display()
-    );
-    println!(
-        "\nCompletions will be available in new {} sessions",
-        shell_name
-    );
-    println!("Or run: source {}", comp_file.display());
+    )
+    .map_err(IoError::from)?;
 
     Ok(())
 }
@@ -337,25 +344,35 @@ fn install_generated_completions(shell: Shell, comp_file: &std::path::Path) -> A
 fn run_mod_rs(path: &str, fix: bool) -> AppResult<()> {
     let result = find_mod_rs_issues(path)?;
 
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
+
     if result.is_empty() {
-        println!("No mod.rs files found");
+        out.write_all(b"No mod.rs files found\n")
+            .map_err(IoError::from)?;
+        out.flush().map_err(IoError::from)?;
         return Ok(());
     }
 
     if fix {
         let fixed = fix_all_mod_rs(path)?;
-        println!("Fixed {} mod.rs files", fixed);
+        writeln!(out, "Fixed {} mod.rs files", fixed).map_err(IoError::from)?;
     } else {
-        println!("Found {} mod.rs files:", result.len());
+        writeln!(out, "Found {} mod.rs files:", result.len()).map_err(IoError::from)?;
         for issue in &result.issues {
-            println!(
+            writeln!(
+                out,
                 "  {} -> {}",
                 issue.path.display(),
                 issue.suggested.display()
-            );
+            )
+            .map_err(IoError::from)?;
         }
-        println!("\nRun with --fix to apply changes");
+        out.write_all(b"\nRun with --fix to apply changes\n")
+            .map_err(IoError::from)?;
     }
+
+    out.flush().map_err(IoError::from)?;
 
     Ok(())
 }
@@ -407,11 +424,7 @@ fn check_quality(
         && analyzers.is_empty()
         && name != "mod_rs"
     {
-        eprintln!("Unknown analyzer: {}. Available analyzers:", name);
-        for analyzer in get_analyzers() {
-            eprintln!("  - {}", analyzer.name());
-        }
-        eprintln!("  - mod_rs");
+        report_unknown_analyzer(name, true)?;
         return Ok(false);
     }
 
@@ -481,6 +494,32 @@ fn check_command(
     Ok(i32::from(has_issues))
 }
 
+/// Writes the unknown-analyzer error with the list of available analyzers.
+///
+/// # Arguments
+///
+/// * `name` - The analyzer name that failed to resolve
+/// * `include_mod_rs` - Whether to list `mod_rs` as an available analyzer
+///
+/// # Returns
+///
+/// `AppResult<()>` - Ok when the message was written
+fn report_unknown_analyzer(name: &str, include_mod_rs: bool) -> AppResult<()> {
+    let stderr = io::stderr();
+    let mut err = BufWriter::new(stderr.lock());
+
+    writeln!(err, "Unknown analyzer: {}. Available analyzers:", name).map_err(IoError::from)?;
+    for analyzer in get_analyzers() {
+        writeln!(err, "  - {}", analyzer.name()).map_err(IoError::from)?;
+    }
+    if include_mod_rs {
+        err.write_all(b"  - mod_rs\n").map_err(IoError::from)?;
+    }
+    err.flush().map_err(IoError::from)?;
+
+    Ok(())
+}
+
 /// Adds mod.rs issues to the global report.
 ///
 /// Converts ModRsResult into Report format for unified display.
@@ -548,13 +587,12 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
         && analyzers.is_empty()
         && name != "mod_rs"
     {
-        eprintln!("Unknown analyzer: {}. Available analyzers:", name);
-        for analyzer in get_analyzers() {
-            eprintln!("  - {}", analyzer.name());
-        }
-        eprintln!("  - mod_rs");
+        report_unknown_analyzer(name, true)?;
         return Ok(());
     }
+
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
 
     let should_fix_mod_rs = analyzer_name.is_none() || analyzer_name == Some("mod_rs");
     if should_fix_mod_rs {
@@ -562,16 +600,18 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
         if !mod_rs_result.is_empty() {
             if dry_run {
                 for issue in &mod_rs_result.issues {
-                    println!(
+                    writeln!(
+                        out,
                         "Would fix: {} -> {}",
                         issue.path.display(),
                         issue.suggested.display()
-                    );
+                    )
+                    .map_err(IoError::from)?;
                 }
             } else {
                 let fixed = fix_all_mod_rs(path)?;
                 if fixed > 0 {
-                    println!("Fixed {} mod.rs files", fixed);
+                    writeln!(out, "Fixed {} mod.rs files", fixed).map_err(IoError::from)?;
                 }
             }
         }
@@ -579,11 +619,13 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
 
     if analyzer_name != Some("mod_rs") {
         let files = collect_rust_files(path)?;
+        let mut suggestions = Vec::new();
+
         for file_path in files {
             let content = fs::read_to_string(&file_path).map_err(IoError::from)?;
             let ast = syn::parse_file(&content).map_err(ParseError::from)?;
 
-            let mut suggestions = Vec::new();
+            suggestions.clear();
             for analyzer in &analyzers {
                 suggestions.extend(analyzer.suggestions(&ast, &content)?);
             }
@@ -594,15 +636,19 @@ fn fix_quality(path: &str, dry_run: bool, analyzer_name: Option<&str>) -> AppRes
             }
 
             if dry_run {
-                println!("Would fix {} issues in {}", fixed, file_path.display());
+                writeln!(out, "Would fix {} issues in {}", fixed, file_path.display())
+                    .map_err(IoError::from)?;
                 continue;
             }
 
             let updated = fixer::apply_suggestions(&content, &suggestions);
             fs::write(&file_path, updated).map_err(IoError::from)?;
-            println!("Fixed {} issues in {}", fixed, file_path.display());
+            writeln!(out, "Fixed {} issues in {}", fixed, file_path.display())
+                .map_err(IoError::from)?;
         }
     }
+
+    out.flush().map_err(IoError::from)?;
 
     Ok(())
 }
@@ -670,27 +716,35 @@ fn run_diff(
     if let Some(name) = analyzer_name
         && analyzers.is_empty()
     {
-        eprintln!("Unknown analyzer: {}. Available analyzers:", name);
-        for analyzer in get_analyzers() {
-            eprintln!("  - {}", analyzer.name());
-        }
+        report_unknown_analyzer(name, false)?;
         return Ok(());
     }
 
     let mut result = DiffResult::new();
 
-    for file_path in files {
-        let Some(path_str) = file_path.to_str() else {
-            eprintln!("Skipping non-UTF-8 path: {}", file_path.display());
-            continue;
-        };
+    {
+        let stderr = io::stderr();
+        let mut err = BufWriter::new(stderr.lock());
 
-        let file_diff = generate_diff(path_str, &analyzers)?;
-        result.add_file(file_diff);
+        for file_path in files {
+            let Some(path_str) = file_path.to_str() else {
+                writeln!(err, "Skipping non-UTF-8 path: {}", file_path.display())
+                    .map_err(IoError::from)?;
+                continue;
+            };
+
+            let file_diff = generate_diff(path_str, &analyzers)?;
+            result.add_file(file_diff);
+        }
+
+        err.flush().map_err(IoError::from)?;
     }
 
     if result.total_changes() == 0 {
-        println!("No changes proposed");
+        io::stdout()
+            .lock()
+            .write_all(b"No changes proposed\n")
+            .map_err(IoError::from)?;
         return Ok(());
     }
 
@@ -700,7 +754,7 @@ fn run_diff(
         let selected = show_interactive(&result, color)?;
         if selected.total_changes() > 0 {
             let applied = apply_diff(&selected)?;
-            println!("Applied {} changes", applied);
+            writeln!(io::stdout().lock(), "Applied {} changes", applied).map_err(IoError::from)?;
         }
     } else {
         show_full(&result, color);

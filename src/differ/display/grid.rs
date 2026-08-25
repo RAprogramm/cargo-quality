@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
+use std::io::{self, BufWriter, Write};
+
 use super::{formatting::pad_to_width, types::RenderedFile};
 
 /// Minimum space between columns in grid layout.
@@ -140,9 +142,26 @@ pub fn render_grid(files: &[RenderedFile], columns: usize) {
         return;
     }
 
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
+    write_grid(&mut out, files, columns).ok();
+    out.flush().ok();
+}
+
+/// Writes the grid layout into the given writer.
+///
+/// # Arguments
+///
+/// * `out` - Destination writer
+/// * `files` - Slice of rendered files to display
+/// * `columns` - Number of columns to use
+///
+/// # Returns
+///
+/// `io::Result<()>` - Ok when every row was written
+fn write_grid(out: &mut impl Write, files: &[RenderedFile], columns: usize) -> io::Result<()> {
     if columns == 1 {
-        render_single_column(files);
-        return;
+        return write_single_column(out, files);
     }
 
     let col_width = files
@@ -168,35 +187,37 @@ pub fn render_grid(files: &[RenderedFile], columns: usize) {
                 }
             }
 
-            println!("{}", row_output);
+            writeln!(out, "{}", row_output)?;
         }
 
-        println!();
+        out.write_all(b"\n")?;
     }
+
+    Ok(())
 }
 
-/// Renders files in single column mode.
+/// Writes files in single column mode.
 ///
 /// Simple vertical layout for narrow terminals or when optimal layout requires
-/// one column. Prints each file sequentially with spacing.
+/// one column. Writes each file sequentially with spacing.
 ///
 /// # Arguments
 ///
+/// * `out` - Destination writer
 /// * `files` - Slice of rendered files
 ///
-/// # Performance
+/// # Returns
 ///
-/// - Direct line-by-line output
-/// - No padding calculations needed
-/// - Minimal allocations
-#[inline]
-fn render_single_column(files: &[RenderedFile]) {
+/// `io::Result<()>` - Ok when every line was written
+fn write_single_column(out: &mut impl Write, files: &[RenderedFile]) -> io::Result<()> {
     for file in files {
         for line in &file.lines {
-            println!("{}", line);
+            writeln!(out, "{}", line)?;
         }
-        println!();
+        out.write_all(b"\n")?;
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -314,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn test_render_single_column_multiple_files() {
+    fn test_write_single_column_multiple_files() {
         let file1 = RenderedFile {
             lines: vec!["test1".to_string()],
             width: 40
@@ -325,6 +346,28 @@ mod tests {
             width: 40
         };
 
-        render_single_column(&[file1, file2]);
+        let mut out = Vec::new();
+        write_single_column(&mut out, &[file1, file2]).unwrap();
+        assert_eq!(String::from_utf8(out).unwrap(), "test1\n\ntest2\n\n");
+    }
+
+    #[test]
+    fn test_write_grid_two_columns_aligns_rows() {
+        let file1 = RenderedFile {
+            lines: vec!["a1".to_string(), "a2".to_string()],
+            width: 4
+        };
+
+        let file2 = RenderedFile {
+            lines: vec!["b1".to_string()],
+            width: 4
+        };
+
+        let mut out = Vec::new();
+        write_grid(&mut out, &[file1, file2], 2).unwrap();
+        let text = String::from_utf8(out).unwrap();
+        assert!(text.contains("a1"));
+        assert!(text.contains("b1"));
+        assert!(text.lines().count() >= 2);
     }
 }
