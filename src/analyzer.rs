@@ -176,6 +176,32 @@ impl Fix {
     }
 }
 
+/// Location and description of a single finding in a source file.
+///
+/// Shared by every issue type so that reporting code works with one shape.
+///
+/// # Examples
+///
+/// ```
+/// use cargo_quality::analyzer::Diagnostic;
+///
+/// let diagnostic = Diagnostic {
+///     line:    42,
+///     column:  15,
+///     message: "Use import instead of path".to_string()
+/// };
+/// assert_eq!(diagnostic.line, 42);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Diagnostic {
+    /// Line number where issue was found
+    pub line:    usize,
+    /// Column number
+    pub column:  usize,
+    /// Issue description
+    pub message: String
+}
+
 /// Analysis issue found in code.
 ///
 /// Represents a single quality issue detected by an analyzer, including
@@ -184,30 +210,52 @@ impl Fix {
 /// # Examples
 ///
 /// ```
-/// # use cargo_quality::analyzer::{Issue, Fix};
-/// let issue = Issue {
-///     line:    42,
-///     column:  15,
-///     message: "Use import instead of path".to_string(),
-///     fix:     Fix::WithImport {
+/// # use cargo_quality::analyzer::{Fix, Issue};
+/// let issue = Issue::new(
+///     42,
+///     15,
+///     "Use import instead of path".to_string(),
+///     Fix::WithImport {
 ///         import:      "use std::fs::read_to_string;".to_string(),
 ///         pattern:     "std::fs::read_to_string".to_string(),
 ///         replacement: "read_to_string".to_string()
 ///     }
-/// };
-/// assert_eq!(issue.line, 42);
+/// );
+/// assert_eq!(issue.diagnostic.line, 42);
 /// assert!(issue.fix.is_available());
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Issue {
-    /// Line number where issue was found
-    pub line:    usize,
-    /// Column number
-    pub column:  usize,
-    /// Issue description
-    pub message: String,
+    /// Where the issue was found and what it says
+    pub diagnostic: Diagnostic,
     /// Automatic fix
-    pub fix:     Fix
+    pub fix:        Fix
+}
+
+impl Issue {
+    /// Creates an issue from its location, message, and fix.
+    ///
+    /// # Arguments
+    ///
+    /// * `line` - Line number where the issue was found
+    /// * `column` - Column number
+    /// * `message` - Issue description
+    /// * `fix` - Automatic fix, or [`Fix::None`]
+    ///
+    /// # Returns
+    ///
+    /// The assembled issue
+    #[inline]
+    pub fn new(line: usize, column: usize, message: String, fix: Fix) -> Self {
+        Self {
+            diagnostic: Diagnostic {
+                line,
+                column,
+                message
+            },
+            fix
+        }
+    }
 }
 
 /// Result of code analysis.
@@ -332,15 +380,15 @@ mod tests {
 
     #[test]
     fn test_issue_creation() {
-        let issue = Issue {
-            line:    42,
-            column:  10,
-            message: "Test issue".to_string(),
-            fix:     Fix::Simple("Fix suggestion".to_string())
-        };
+        let issue = Issue::new(
+            42,
+            10,
+            "Test issue".to_string(),
+            Fix::Simple("Fix suggestion".to_string())
+        );
 
-        assert_eq!(issue.line, 42);
-        assert_eq!(issue.column, 10);
+        assert_eq!(issue.diagnostic.line, 42);
+        assert_eq!(issue.diagnostic.column, 10);
         assert!(issue.fix.is_available());
     }
 

@@ -323,7 +323,11 @@ impl fmt::Display for Report {
 
             writeln!(f, "\n[{}]", analyzer_name)?;
             for issue in &result.issues {
-                write!(f, "  {}:{} - {}", issue.line, issue.column, issue.message)?;
+                write!(
+                    f,
+                    "  {}:{} - {}",
+                    issue.diagnostic.line, issue.diagnostic.column, issue.diagnostic.message
+                )?;
                 if issue.fix.is_available() {
                     if let Some((import, _pattern, _replacement)) = issue.fix.as_import() {
                         write!(f, "\n    Fix: Add import: {}", import)?;
@@ -411,14 +415,16 @@ impl GlobalReport {
                 }
 
                 for issue in &result.issues {
-                    let file_list = message_map.entry(issue.message.clone()).or_default();
+                    let file_list = message_map
+                        .entry(issue.diagnostic.message.clone())
+                        .or_default();
 
                     if let Some((_, lines)) =
                         file_list.iter_mut().find(|(f, _)| f == &report.file_path)
                     {
-                        lines.push(issue.line);
+                        lines.push(issue.diagnostic.line);
                     } else {
-                        file_list.push((report.file_path.clone(), vec![issue.line]));
+                        file_list.push((report.file_path.clone(), vec![issue.diagnostic.line]));
                     }
                 }
             }
@@ -477,14 +483,16 @@ impl GlobalReport {
                 let message_map = analyzer_groups.entry(analyzer_name.clone()).or_default();
 
                 for issue in &result.issues {
-                    let file_list = message_map.entry(issue.message.clone()).or_default();
+                    let file_list = message_map
+                        .entry(issue.diagnostic.message.clone())
+                        .or_default();
 
                     if let Some((_, lines)) =
                         file_list.iter_mut().find(|(f, _)| f == &report.file_path)
                     {
-                        lines.push(issue.line);
+                        lines.push(issue.diagnostic.line);
                     } else {
-                        file_list.push((report.file_path.clone(), vec![issue.line]));
+                        file_list.push((report.file_path.clone(), vec![issue.diagnostic.line]));
                     }
                 }
             }
@@ -563,12 +571,7 @@ mod tests {
     fn test_report_total_issues() {
         let mut report = Report::new("test.rs".to_string());
 
-        let issue = Issue {
-            line:    1,
-            column:  1,
-            message: "Test".to_string(),
-            fix:     crate::analyzer::Fix::None
-        };
+        let issue = Issue::new(1, 1, "Test".to_string(), crate::analyzer::Fix::None);
 
         let result = AnalysisResult {
             issues:        vec![issue],
@@ -584,12 +587,12 @@ mod tests {
     fn test_report_display_with_issues() {
         let mut report = Report::new("test.rs".to_string());
 
-        let issue = Issue {
-            line:    42,
-            column:  15,
-            message: "Test issue".to_string(),
-            fix:     crate::analyzer::Fix::Simple("Fix suggestion".to_string())
-        };
+        let issue = Issue::new(
+            42,
+            15,
+            "Test issue".to_string(),
+            crate::analyzer::Fix::Simple("Fix suggestion".to_string())
+        );
 
         let result = AnalysisResult {
             issues:        vec![issue],
@@ -629,12 +632,12 @@ mod tests {
     fn test_report_display_issue_without_suggestion() {
         let mut report = Report::new("file.rs".to_string());
 
-        let issue = Issue {
-            line:    10,
-            column:  5,
-            message: "Warning message".to_string(),
-            fix:     crate::analyzer::Fix::None
-        };
+        let issue = Issue::new(
+            10,
+            5,
+            "Warning message".to_string(),
+            crate::analyzer::Fix::None
+        );
 
         let result = AnalysisResult {
             issues:        vec![issue],
@@ -652,19 +655,14 @@ mod tests {
     fn test_report_multiple_analyzers() {
         let mut report = Report::new("code.rs".to_string());
 
-        let issue1 = Issue {
-            line:    1,
-            column:  1,
-            message: "Issue 1".to_string(),
-            fix:     crate::analyzer::Fix::Simple("Fix 1".to_string())
-        };
+        let issue1 = Issue::new(
+            1,
+            1,
+            "Issue 1".to_string(),
+            crate::analyzer::Fix::Simple("Fix 1".to_string())
+        );
 
-        let issue2 = Issue {
-            line:    2,
-            column:  2,
-            message: "Issue 2".to_string(),
-            fix:     crate::analyzer::Fix::None
-        };
+        let issue2 = Issue::new(2, 2, "Issue 2".to_string(), crate::analyzer::Fix::None);
 
         report.add_result(
             "analyzer1".to_string(),

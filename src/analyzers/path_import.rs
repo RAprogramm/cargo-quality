@@ -564,16 +564,16 @@ impl PathVisitor {
                 .map(|s| s.ident.to_string())
                 .unwrap_or_default();
 
-            self.issues.push(Issue {
-                line:    start.line,
-                column:  start.column,
-                message: format!("Use import instead of path: {}", path_str),
-                fix:     Fix::WithImport {
+            self.issues.push(Issue::new(
+                start.line,
+                start.column,
+                format!("Use import instead of path: {}", path_str),
+                Fix::WithImport {
                     import:      format!("use {};", path_str),
                     pattern:     path_str.clone(),
                     replacement: function_name
                 }
-            });
+            ));
         }
     }
 }
@@ -1033,7 +1033,12 @@ mod tests {
         let result = analyzer.analyze(&code, "").unwrap();
         assert!(!result.issues.is_empty());
         let issue = &result.issues[0];
-        assert!(issue.message.contains("Use import instead of path"));
+        assert!(
+            issue
+                .diagnostic
+                .message
+                .contains("Use import instead of path")
+        );
         assert!(issue.fix.is_available());
         if let Some((import, pattern, replacement)) = issue.fix.as_import() {
             assert!(import.contains("use"));

@@ -105,12 +105,12 @@ impl InlineCommentsAnalyzer {
                     format!("Move to doc block # Notes section:\n/// - {}", comment_text)
                 };
 
-                issues.push(Issue {
-                    line:    line_num,
-                    column:  1,
-                    message: format!("Inline comment found: \"{}\"\n{}", comment_text, suggestion),
-                    fix:     Fix::None
-                });
+                issues.push(Issue::new(
+                    line_num,
+                    1,
+                    format!("Inline comment found: \"{}\"\n{}", comment_text, suggestion),
+                    Fix::None
+                ));
             }
         }
 
@@ -278,7 +278,12 @@ mod tests {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert!(result.issues[0].message.contains("This is a comment"));
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("This is a comment")
+        );
     }
 
     #[test]
@@ -336,8 +341,18 @@ mod tests {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert!(result.issues[0].message.contains("Calculate sum"));
-        assert!(result.issues[0].message.contains("`let sum = a + b;`"));
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("Calculate sum")
+        );
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("`let sum = a + b;`")
+        );
     }
 
     #[test]
@@ -355,7 +370,7 @@ impl Foo {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert!(result.issues[0].message.contains("Process data"));
+        assert!(result.issues[0].diagnostic.message.contains("Process data"));
     }
 
     #[test]

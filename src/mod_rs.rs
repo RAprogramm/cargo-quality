@@ -26,7 +26,7 @@ use std::{
 use ignore::WalkBuilder;
 use masterror::AppResult;
 
-use crate::error::IoError;
+use crate::{analyzer::Diagnostic, error::IoError};
 
 /// Result of mod.rs detection.
 ///
@@ -34,15 +34,11 @@ use crate::error::IoError;
 #[derive(Debug, Clone)]
 pub struct ModRsIssue {
     /// Path to the mod.rs file
-    pub path:      PathBuf,
+    pub path:       PathBuf,
     /// Suggested new path after fix
-    pub suggested: PathBuf,
-    /// Human-readable message
-    pub message:   String,
-    /// Line number (always 1 for file-level issues)
-    pub line:      usize,
-    /// Column number (always 1 for file-level issues)
-    pub column:    usize
+    pub suggested:  PathBuf,
+    /// Location (always line 1, column 1 for file-level issues) and message
+    pub diagnostic: Diagnostic
 }
 
 /// Result of mod.rs analysis.
@@ -181,12 +177,14 @@ fn create_issue(path: &Path) -> Option<ModRsIssue> {
     Some(ModRsIssue {
         path: path.to_path_buf(),
         suggested,
-        message: format!(
-            "Use `{}.rs` instead of `{}/mod.rs` (modern module style)",
-            module_name, module_name
-        ),
-        line: 1,
-        column: 1
+        diagnostic: Diagnostic {
+            line:    1,
+            column:  1,
+            message: format!(
+                "Use `{}.rs` instead of `{}/mod.rs` (modern module style)",
+                module_name, module_name
+            )
+        }
     })
 }
 
@@ -325,7 +323,7 @@ mod tests {
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 1);
-        assert!(result.issues[0].message.contains("analyzers"));
+        assert!(result.issues[0].diagnostic.message.contains("analyzers"));
     }
 
     #[test]
@@ -451,7 +449,7 @@ mod tests {
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 1);
-        assert!(result.issues[0].message.contains("foo"));
+        assert!(result.issues[0].diagnostic.message.contains("foo"));
     }
 
     #[test]
@@ -462,8 +460,13 @@ mod tests {
         write(subdir.join("mod.rs"), "").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
-        assert!(result.issues[0].message.contains("handlers.rs"));
-        assert!(result.issues[0].message.contains("handlers/mod.rs"));
+        assert!(result.issues[0].diagnostic.message.contains("handlers.rs"));
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("handlers/mod.rs")
+        );
     }
 
     #[test]
@@ -488,7 +491,7 @@ mod tests {
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
         assert_eq!(result.len(), 1);
-        assert!(result.issues[0].message.contains("level2"));
+        assert!(result.issues[0].diagnostic.message.contains("level2"));
         assert_eq!(result.issues[0].suggested, level1.join("level2.rs"));
     }
 
@@ -522,8 +525,8 @@ mod tests {
         write(subdir.join("mod.rs"), "").unwrap();
 
         let result = find_mod_rs_issues(temp.path().to_str().unwrap()).unwrap();
-        assert_eq!(result.issues[0].line, 1);
-        assert_eq!(result.issues[0].column, 1);
+        assert_eq!(result.issues[0].diagnostic.line, 1);
+        assert_eq!(result.issues[0].diagnostic.column, 1);
     }
 
     #[test]

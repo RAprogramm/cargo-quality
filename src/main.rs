@@ -531,12 +531,12 @@ fn add_mod_rs_to_report(mod_rs_result: &ModRsResult, global_report: &mut GlobalR
         let mut report = Report::new(issue.path.display().to_string());
 
         let analysis_result = AnalysisResult {
-            issues:        vec![Issue {
-                line:    issue.line,
-                column:  issue.column,
-                message: issue.message.clone(),
-                fix:     Fix::Simple(issue.suggested.display().to_string())
-            }],
+            issues:        vec![Issue::new(
+                issue.diagnostic.line,
+                issue.diagnostic.column,
+                issue.diagnostic.message.clone(),
+                Fix::Simple(issue.suggested.display().to_string())
+            )],
             fixable_count: 1
         };
 

@@ -35,7 +35,7 @@
 //! let result = analyzer.analyze(&ast, code).unwrap();
 //!
 //! assert!(!result.issues.is_empty());
-//! assert!(result.issues[0].message.contains("Use import"));
+//! assert!(result.issues[0].diagnostic.message.contains("Use import"));
 //! ```
 //!
 //! # Available Analyzers

@@ -89,13 +89,12 @@ impl EmptyLinesAnalyzer {
                     continue;
                 }
 
-                issues.push(Issue {
-                    line:    line_num,
-                    column:  1,
-                    message: "Empty line in function body indicates untamed complexity"
-                        .to_string(),
-                    fix:     Fix::None
-                });
+                issues.push(Issue::new(
+                    line_num,
+                    1,
+                    "Empty line in function body indicates untamed complexity".to_string(),
+                    Fix::None
+                ));
             }
         }
 
@@ -441,7 +440,7 @@ impl Foo {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert_eq!(result.issues[0].line, 6);
+        assert_eq!(result.issues[0].diagnostic.line, 6);
     }
 
     #[test]
@@ -485,7 +484,7 @@ impl Foo {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert_eq!(result.issues[0].line, 4);
+        assert_eq!(result.issues[0].diagnostic.line, 4);
     }
 
     #[test]
