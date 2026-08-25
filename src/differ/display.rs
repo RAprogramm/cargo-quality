@@ -44,7 +44,7 @@ pub mod types;
 // Re-export key types and functions for public API
 use std::{
     collections::HashMap,
-    io::{self, Write}
+    io::{self, BufWriter, Write}
 };
 
 use masterror::AppResult;
@@ -55,7 +55,7 @@ pub use self::{
     grid::{calculate_columns, render_grid},
     render::render_file_block
 };
-use super::types::{DiffResult, FileDiff};
+use super::types::{DiffEntry, DiffResult, FileDiff};
 use crate::error::IoError;
 
 /// Displays diff in summary mode with brief statistics.
@@ -92,17 +92,35 @@ use crate::error::IoError;
 /// show_summary(&result, false);
 /// ```
 pub fn show_summary(result: &DiffResult, color: bool) {
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
+    write_summary(&mut out, result, color).ok();
+    out.flush().ok();
+}
+
+/// Writes the diff summary into the given writer.
+///
+/// # Arguments
+///
+/// * `out` - Destination writer
+/// * `result` - Diff results to render
+/// * `color` - Enable colored output
+///
+/// # Returns
+///
+/// `io::Result<()>` - Ok when every line was written
+fn write_summary(out: &mut impl Write, result: &DiffResult, color: bool) -> io::Result<()> {
     if color {
-        println!("\n{}\n", "DIFF SUMMARY".bold());
+        writeln!(out, "\n{}\n", "DIFF SUMMARY".bold())?;
     } else {
-        println!("\nDIFF SUMMARY\n");
+        out.write_all(b"\nDIFF SUMMARY\n\n")?;
     }
 
     for file in &result.files {
         if color {
-            println!("{}:", file.path.cyan().bold());
+            writeln!(out, "{}:", file.path.cyan().bold())?;
         } else {
-            println!("{}:", file.path);
+            writeln!(out, "{}:", file.path)?;
         }
 
         let mut analyzer_counts = HashMap::new();
@@ -111,25 +129,31 @@ pub fn show_summary(result: &DiffResult, color: bool) {
         }
 
         for (analyzer, count) in analyzer_counts {
+            let noun = if count == 1 { "issue" } else { "issues" };
             if color {
-                println!(
-                    "  {}: {} {}",
-                    analyzer.green(),
-                    count,
-                    if count == 1 { "issue" } else { "issues" }
-                );
+                writeln!(out, "  {}: {} {}", analyzer.green(), count, noun)?;
             } else {
-                println!(
-                    "  {}: {} {}",
-                    analyzer,
-                    count,
-                    if count == 1 { "issue" } else { "issues" }
-                );
+                writeln!(out, "  {}: {} {}", analyzer, count, noun)?;
             }
         }
-        println!();
+        out.write_all(b"\n")?;
     }
 
+    write_totals(out, result, color)
+}
+
+/// Writes the closing totals line shared by the summary and full views.
+///
+/// # Arguments
+///
+/// * `out` - Destination writer
+/// * `result` - Diff results to summarize
+/// * `color` - Enable colored output
+///
+/// # Returns
+///
+/// `io::Result<()>` - Ok when the line was written
+fn write_totals(out: &mut impl Write, result: &DiffResult, color: bool) -> io::Result<()> {
     let summary = format!(
         "Total: {} changes in {} files",
         result.total_changes(),
@@ -137,9 +161,9 @@ pub fn show_summary(result: &DiffResult, color: bool) {
     );
 
     if color {
-        println!("{}", summary.yellow().bold());
+        writeln!(out, "{}", summary.yellow().bold())
     } else {
-        println!("{}", summary);
+        writeln!(out, "{}", summary)
     }
 }
 
@@ -175,10 +199,13 @@ pub fn show_summary(result: &DiffResult, color: bool) {
 /// show_full(&result, false);
 /// ```
 pub fn show_full(result: &DiffResult, color: bool) {
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
+
     if color {
-        println!("\n{}\n", "DIFF OUTPUT".bold());
+        writeln!(out, "\n{}\n", "DIFF OUTPUT".bold()).ok();
     } else {
-        println!("\nDIFF OUTPUT\n");
+        out.write_all(b"\nDIFF OUTPUT\n\n").ok();
     }
 
     let term_width = terminal_size()
@@ -200,25 +227,17 @@ pub fn show_full(result: &DiffResult, color: bool) {
         );
 
         if color {
-            println!("{}\n", layout_info.dimmed());
+            writeln!(out, "{}\n", layout_info.dimmed()).ok();
         } else {
-            println!("{}\n", layout_info);
+            writeln!(out, "{}\n", layout_info).ok();
         }
     }
 
+    out.flush().ok();
     render_grid(&rendered, columns);
 
-    let summary = format!(
-        "Total: {} changes in {} files",
-        result.total_changes(),
-        result.total_files()
-    );
-
-    if color {
-        println!("{}", summary.yellow().bold());
-    } else {
-        println!("{}", summary);
-    }
+    write_totals(&mut out, result, color).ok();
+    out.flush().ok();
 }
 
 /// Displays interactive diff with user prompts for selective application.
@@ -258,59 +277,39 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<DiffResul
     let mut selected = DiffResult::new();
     let mut apply_all = false;
 
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
+
     if color {
-        println!("\n{}\n", "INTERACTIVE DIFF".bold());
-        println!("{}", "Commands: y=yes, n=no, a=all, q=quit\n".dimmed());
+        writeln!(out, "\n{}\n", "INTERACTIVE DIFF".bold()).map_err(IoError::from)?;
+        writeln!(out, "{}", "Commands: y=yes, n=no, a=all, q=quit\n".dimmed())
+            .map_err(IoError::from)?;
     } else {
-        println!("\nINTERACTIVE DIFF\n");
-        println!("Commands: y=yes, n=no, a=all, q=quit\n");
+        out.write_all(b"\nINTERACTIVE DIFF\n\nCommands: y=yes, n=no, a=all, q=quit\n\n")
+            .map_err(IoError::from)?;
     }
 
     for file in &result.files {
         if color {
-            println!("{}", format!("File: {}", file.path).cyan().bold());
+            writeln!(out, "{}", format!("File: {}", file.path).cyan().bold())
+                .map_err(IoError::from)?;
         } else {
-            println!("File: {}", file.path);
+            writeln!(out, "File: {}", file.path).map_err(IoError::from)?;
         }
-        println!();
+        out.write_all(b"\n").map_err(IoError::from)?;
 
         let mut file_selected = FileDiff::new(file.path.clone());
 
         for (idx, entry) in file.entries.iter().enumerate() {
-            if color {
-                println!(
-                    "{} {}",
-                    format!("[{}/{}]", idx + 1, file.entries.len()).yellow(),
-                    entry.analyzer.green()
-                );
-                println!("{}", format!("Line {}:", entry.line).dimmed());
-                println!("{}", format!("- {}", entry.original).red());
-
-                if let Some(import) = &entry.import {
-                    println!("{}", format!("+ {}", import.statement).green());
-                }
-
-                println!("{}", format!("+ {}", entry.modified).green());
-            } else {
-                println!("[{}/{}] {}", idx + 1, file.entries.len(), entry.analyzer);
-                println!("Line {}:", entry.line);
-                println!("- {}", entry.original);
-
-                if let Some(import) = &entry.import {
-                    println!("+ {}", import.statement);
-                }
-
-                println!("+ {}", entry.modified);
-            }
-            println!();
+            write_entry(&mut out, idx, file.entries.len(), entry, color).map_err(IoError::from)?;
 
             if apply_all {
                 file_selected.add_entry(entry.clone());
                 continue;
             }
 
-            print!("{}", "Apply this fix? [y/n/a/q]: ".bold());
-            io::stdout().flush().map_err(IoError::from)?;
+            write!(out, "{}", "Apply this fix? [y/n/a/q]: ".bold()).map_err(IoError::from)?;
+            out.flush().map_err(IoError::from)?;
 
             let mut input = String::new();
             io::stdin().read_line(&mut input).map_err(IoError::from)?;
@@ -318,41 +317,102 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<DiffResul
             match input.trim().to_lowercase().as_str() {
                 "y" | "yes" => {
                     file_selected.add_entry(entry.clone());
-                    println!("{}", "Applied".green());
+                    writeln!(out, "{}", "Applied".green()).map_err(IoError::from)?;
                 }
                 "n" | "no" => {
-                    println!("{}", "Skipped".yellow());
+                    writeln!(out, "{}", "Skipped".yellow()).map_err(IoError::from)?;
                 }
                 "a" | "all" => {
                     apply_all = true;
                     file_selected.add_entry(entry.clone());
-                    println!("{}", "Applying all remaining changes".green().bold());
+                    writeln!(out, "{}", "Applying all remaining changes".green().bold())
+                        .map_err(IoError::from)?;
                 }
                 "q" | "quit" => {
-                    println!("{}", "Quit".red());
+                    writeln!(out, "{}", "Quit".red()).map_err(IoError::from)?;
                     selected.add_file(file_selected);
-                    println!(
-                        "\n{}",
-                        format!(
-                            "Selected {} changes for application",
-                            selected.total_changes()
-                        )
-                        .yellow()
-                        .bold()
-                    );
+                    write_selected_total(&mut out, &selected).map_err(IoError::from)?;
+                    out.flush().map_err(IoError::from)?;
                     return Ok(selected);
                 }
                 _ => {
-                    println!("{}", "Invalid input, skipping".red());
+                    writeln!(out, "{}", "Invalid input, skipping".red()).map_err(IoError::from)?;
                 }
             }
-            println!();
+            out.write_all(b"\n").map_err(IoError::from)?;
         }
 
         selected.add_file(file_selected);
     }
 
-    println!(
+    write_selected_total(&mut out, &selected).map_err(IoError::from)?;
+    out.flush().map_err(IoError::from)?;
+
+    Ok(selected)
+}
+
+/// Writes one interactive diff entry block.
+///
+/// # Arguments
+///
+/// * `out` - Destination writer
+/// * `idx` - Zero-based entry index within the file
+/// * `total` - Total entries in the file
+/// * `entry` - Entry to render
+/// * `color` - Enable colored output
+///
+/// # Returns
+///
+/// `io::Result<()>` - Ok when every line was written
+fn write_entry(
+    out: &mut impl Write,
+    idx: usize,
+    total: usize,
+    entry: &DiffEntry,
+    color: bool
+) -> io::Result<()> {
+    if color {
+        writeln!(
+            out,
+            "{} {}",
+            format!("[{}/{}]", idx + 1, total).yellow(),
+            entry.analyzer.green()
+        )?;
+        writeln!(out, "{}", format!("Line {}:", entry.line).dimmed())?;
+        writeln!(out, "{}", format!("- {}", entry.preview.original).red())?;
+
+        if let Some(import) = &entry.suggestion.import {
+            writeln!(out, "{}", format!("+ {}", import.statement).green())?;
+        }
+
+        writeln!(out, "{}", format!("+ {}", entry.preview.modified).green())?;
+    } else {
+        writeln!(out, "[{}/{}] {}", idx + 1, total, entry.analyzer)?;
+        writeln!(out, "Line {}:", entry.line)?;
+        writeln!(out, "- {}", entry.preview.original)?;
+
+        if let Some(import) = &entry.suggestion.import {
+            writeln!(out, "+ {}", import.statement)?;
+        }
+
+        writeln!(out, "+ {}", entry.preview.modified)?;
+    }
+    out.write_all(b"\n")
+}
+
+/// Writes the closing "selected changes" line of the interactive flow.
+///
+/// # Arguments
+///
+/// * `out` - Destination writer
+/// * `selected` - Accumulated selection to report
+///
+/// # Returns
+///
+/// `io::Result<()>` - Ok when the line was written
+fn write_selected_total(out: &mut impl Write, selected: &DiffResult) -> io::Result<()> {
+    writeln!(
+        out,
         "\n{}",
         format!(
             "Selected {} changes for application",
@@ -360,15 +420,16 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<DiffResul
         )
         .yellow()
         .bold()
-    );
-
-    Ok(selected)
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{analyzer::TextEdit, differ::types::DiffEntry};
+    use crate::{
+        analyzer::{Suggestion, TextEdit},
+        differ::types::{ChangePreview, DiffEntry}
+    };
 
     #[test]
     fn test_show_summary_empty() {
@@ -388,13 +449,17 @@ mod tests {
         let mut file = FileDiff::new("test.rs".to_string());
 
         file.add_entry(DiffEntry {
-            line:        1,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       1,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         });
 
         result.add_file(file);
@@ -407,13 +472,17 @@ mod tests {
         let mut file = FileDiff::new("test.rs".to_string());
 
         file.add_entry(DiffEntry {
-            line:        10,
-            analyzer:    "test".to_string(),
-            original:    "old".to_string(),
-            modified:    "new".to_string(),
-            description: "desc".to_string(),
-            import:      None,
-            edit:        TextEdit::default()
+            line:       10,
+            analyzer:   "test".to_string(),
+            preview:    ChangePreview {
+                original:    "old".to_string(),
+                modified:    "new".to_string(),
+                description: "desc".to_string()
+            },
+            suggestion: Suggestion {
+                edit:   TextEdit::default(),
+                import: None
+            }
         });
 
         result.add_file(file);

@@ -10,8 +10,9 @@
 use std::collections::HashSet;
 
 use masterror::AppResult;
-use syn::{File, ImplItem, Item, ItemFn, ItemImpl, spanned::Spanned, visit::Visit};
+use syn::{File, ImplItem, ItemFn, ItemImpl, spanned::Spanned, visit::Visit};
 
+use super::visitor::{FunctionVisitor, ItemCheckers, SourceView};
 use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue};
 
 /// Analyzer for detecting empty lines inside functions and methods.
@@ -89,13 +90,12 @@ impl EmptyLinesAnalyzer {
                     continue;
                 }
 
-                issues.push(Issue {
-                    line:    line_num,
-                    column:  1,
-                    message: "Empty line in function body indicates untamed complexity"
-                        .to_string(),
-                    fix:     Fix::None
-                });
+                issues.push(Issue::new(
+                    line_num,
+                    1,
+                    "Empty line in function body indicates untamed complexity".to_string(),
+                    Fix::None
+                ));
             }
         }
 
@@ -201,8 +201,14 @@ impl Analyzer for EmptyLinesAnalyzer {
         let excluded = crate::analyzers::multiline_literal_lines(ast);
         let mut visitor = FunctionVisitor {
             issues:   Vec::new(),
-            lines:    &lines,
-            excluded: &excluded
+            source:   SourceView {
+                lines:    &lines,
+                excluded: &excluded
+            },
+            checkers: ItemCheckers {
+                function:   Self::check_function,
+                impl_block: Self::check_impl_block
+            }
         };
         visitor.visit_file(ast);
 
@@ -210,31 +216,6 @@ impl Analyzer for EmptyLinesAnalyzer {
             issues:        visitor.issues,
             fixable_count: 0
         })
-    }
-}
-
-struct FunctionVisitor<'a> {
-    issues:   Vec<Issue>,
-    lines:    &'a [&'a str],
-    excluded: &'a HashSet<usize>
-}
-
-impl<'ast, 'a> Visit<'ast> for FunctionVisitor<'a> {
-    fn visit_item(&mut self, node: &'ast Item) {
-        match node {
-            Item::Fn(func) => {
-                let func_issues =
-                    EmptyLinesAnalyzer::check_function(func, self.lines, self.excluded);
-                self.issues.extend(func_issues);
-            }
-            Item::Impl(impl_block) => {
-                let impl_issues =
-                    EmptyLinesAnalyzer::check_impl_block(impl_block, self.lines, self.excluded);
-                self.issues.extend(impl_issues);
-            }
-            _ => {}
-        }
-        syn::visit::visit_item(self, node);
     }
 }
 
@@ -441,7 +422,7 @@ impl Foo {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert_eq!(result.issues[0].line, 6);
+        assert_eq!(result.issues[0].diagnostic.line, 6);
     }
 
     #[test]
@@ -485,7 +466,7 @@ impl Foo {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert_eq!(result.issues[0].line, 4);
+        assert_eq!(result.issues[0].diagnostic.line, 4);
     }
 
     #[test]

@@ -1,359 +1,457 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
+use std::io::{self, BufWriter, Write};
+
 use owo_colors::{OwoColorize, colors::*};
 
 pub fn display_help() {
-    println!(
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
+    write_help(&mut out).ok();
+    out.flush().ok();
+}
+
+/// Writes the full help text into the given writer.
+///
+/// # Arguments
+///
+/// * `out` - Destination writer
+///
+/// # Returns
+///
+/// `io::Result<()>` - Ok when every line was written
+fn write_help(out: &mut impl Write) -> io::Result<()> {
+    writeln!(
+        out,
         "\n{}",
         "╔══════════════════════════════════════════════════════════════════╗".fg::<Cyan>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "{}",
         "║                    CARGO QUALITY TOOLKIT                         ║"
             .fg::<Cyan>()
             .bold()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "{}",
         "║           Professional Rust Code Quality Analysis               ║".fg::<Cyan>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "{}",
         "╚══════════════════════════════════════════════════════════════════╝".fg::<Cyan>()
-    );
+    )?;
 
-    println!("\n{}", "COMMANDS".fg::<Yellow>().bold());
-    println!(
+    writeln!(out, "\n{}", "COMMANDS".fg::<Yellow>().bold())?;
+    writeln!(
+        out,
         "{}",
         "────────────────────────────────────────────────────────────────────"
             .fg::<Yellow>()
             .dimmed()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "check".fg::<Green>().bold(),
         "[PATH]".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Analyze code quality without modifying files",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXIT:".fg::<Blue>().dimmed(),
         "1 if any issues are found, 0 otherwise (usable as a CI gate)".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
         "--verbose, -v | --analyzer, -a <NAME> | --color, -c".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual check src/".fg::<Cyan>().italic()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "             {}",
         "cargo qual check -a inline_comments".fg::<Cyan>().italic()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "             {}",
         "cargo qual check --color src/".fg::<Cyan>().italic()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "fix".fg::<Green>().bold(),
         "[PATH]".fg::<Magenta>()
-    );
-    println!("    {} Apply automatic quality fixes", "→".fg::<Blue>());
-    println!(
+    )?;
+    writeln!(
+        out,
+        "    {} Apply automatic quality fixes",
+        "→".fg::<Blue>()
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
         "--dry-run, -d | --analyzer, -a <NAME>".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual fix --dry-run".fg::<Cyan>().italic()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "             {}",
         "cargo qual fix -a path_import".fg::<Cyan>().italic()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "format".fg::<Green>().bold(),
         "[PATH]".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Format code according to quality rules",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual format .".fg::<Cyan>().italic()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "fmt".fg::<Green>().bold(),
         "[PATH]".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Run cargo +nightly fmt with project config",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Uses hardcoded .rustfmt.toml configuration",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Preserves existing config automatically",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual fmt".fg::<Cyan>().italic()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "diff".fg::<Green>().bold(),
         "[PATH]".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Show proposed changes before applying",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "OPTIONS:".fg::<Blue>().dimmed(),
         "--summary, -s | --interactive, -i | --analyzer, -a <NAME> | --color, -c".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "MODES:".fg::<Blue>().dimmed(),
         "full (default), summary, interactive".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual diff --summary".fg::<Cyan>().italic()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "             {}",
         "cargo qual diff -a path_import".fg::<Cyan>().italic()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "             {}",
         "cargo qual diff --color --summary".fg::<Cyan>().italic()
-    );
+    )?;
 
-    println!("\n  {}", "help".fg::<Green>().bold());
-    println!(
+    writeln!(out, "\n  {}", "help".fg::<Green>().bold())?;
+    writeln!(
+        out,
         "    {} Display this beautiful help message",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual help".fg::<Cyan>().italic()
-    );
+    )?;
 
-    println!("\n  {}", "setup".fg::<Green>().bold());
-    println!(
+    writeln!(out, "\n  {}", "setup".fg::<Green>().bold())?;
+    writeln!(
+        out,
         "    {} Automatically install shell completions",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "NOTE:".fg::<Blue>().dimmed(),
         "Detects your shell and installs to standard location".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual setup".fg::<Cyan>().italic()
-    );
+    )?;
 
-    println!("\n  {}", "completions".fg::<Green>().bold());
-    println!(
+    writeln!(out, "\n  {}", "completions".fg::<Green>().bold())?;
+    writeln!(
+        out,
         "    {} Generate shell completion scripts (manual)",
         "→".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "SHELLS:".fg::<Blue>().dimmed(),
         "bash, fish, zsh, powershell, elvish".fg::<Magenta>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} {}",
         "EXAMPLE:".fg::<Blue>().dimmed(),
         "cargo qual completions fish > ~/.config/fish/completions/cargo.fish"
             .fg::<Cyan>()
             .italic()
-    );
+    )?;
 
-    println!("\n{}", "ANALYZERS".fg::<Yellow>().bold());
-    println!(
+    writeln!(out, "\n{}", "ANALYZERS".fg::<Yellow>().bold())?;
+    writeln!(
+        out,
         "{}",
         "────────────────────────────────────────────────────────────────────"
             .fg::<Yellow>()
             .dimmed()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "✓".fg::<Green>(),
         "Path Import Analyzer".fg::<Cyan>().bold()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Detects direct module path usage (e.g., std::fs::read)",
         "•".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Suggests importing functions instead",
         "•".fg::<Blue>()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "✓".fg::<Green>(),
         "Format Args Analyzer".fg::<Cyan>().bold()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Detects positional arguments in format! macros",
         "•".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Suggests using named arguments for clarity",
         "•".fg::<Blue>()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "✓".fg::<Green>(),
         "Empty Lines Analyzer".fg::<Cyan>().bold()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Detects empty lines inside function bodies",
         "•".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Indicates untamed complexity (code smell)",
         "•".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Shown as summary note in diff output",
         "•".fg::<Blue>()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "✓".fg::<Green>(),
         "Inline Comments Analyzer".fg::<Cyan>().bold()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Detects inline comments (//) inside function bodies",
         "•".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Suggests moving to doc block # Notes section with code",
         "•".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Format: /// - Comment text - `code`",
         "•".fg::<Blue>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "    {} Use: cargo qual check -a inline_comments",
         "•".fg::<Blue>()
-    );
+    )?;
 
-    println!("\n{}", "WORKFLOW".fg::<Yellow>().bold());
-    println!(
+    writeln!(out, "\n{}", "WORKFLOW".fg::<Yellow>().bold())?;
+    writeln!(
+        out,
         "{}",
         "────────────────────────────────────────────────────────────────────"
             .fg::<Yellow>()
             .dimmed()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "1.".fg::<Magenta>().bold(),
         "Check your code".fg::<Green>()
-    );
-    println!("     {}", "cargo qual check src/".fg::<Cyan>().italic());
+    )?;
+    writeln!(
+        out,
+        "     {}",
+        "cargo qual check src/".fg::<Cyan>().italic()
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "2.".fg::<Magenta>().bold(),
         "Preview fixes".fg::<Green>()
-    );
-    println!("     {}", "cargo qual fix --dry-run".fg::<Cyan>().italic());
+    )?;
+    writeln!(
+        out,
+        "     {}",
+        "cargo qual fix --dry-run".fg::<Cyan>().italic()
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "3.".fg::<Magenta>().bold(),
         "Apply fixes".fg::<Green>()
-    );
-    println!("     {}", "cargo qual fix".fg::<Cyan>().italic());
+    )?;
+    writeln!(out, "     {}", "cargo qual fix".fg::<Cyan>().italic())?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "4.".fg::<Magenta>().bold(),
         "Format code".fg::<Green>()
-    );
-    println!("     {}", "cargo qual fmt".fg::<Cyan>().italic());
+    )?;
+    writeln!(out, "     {}", "cargo qual fmt".fg::<Cyan>().italic())?;
 
-    println!("\n{}", "PROJECT INFO".fg::<Yellow>().bold());
-    println!(
+    writeln!(out, "\n{}", "PROJECT INFO".fg::<Yellow>().bold())?;
+    writeln!(
+        out,
         "{}",
         "────────────────────────────────────────────────────────────────────"
             .fg::<Yellow>()
             .dimmed()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n  {} {}",
         "Version:".fg::<Blue>(),
         env!("CARGO_PKG_VERSION").fg::<Green>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "  {} {}",
         "Repository:".fg::<Blue>(),
         "https://github.com/RAprogramm/cargo-quality"
             .fg::<Cyan>()
             .underline()
-    );
-    println!("  {} {}", "License:".fg::<Blue>(), "MIT".fg::<Green>());
-    println!(
+    )?;
+    writeln!(out, "  {} {}", "License:".fg::<Blue>(), "MIT".fg::<Green>())?;
+    writeln!(
+        out,
         "  {} {}",
         "Author:".fg::<Blue>(),
         "RAprogramm".fg::<Magenta>()
-    );
+    )?;
 
-    println!(
+    writeln!(
+        out,
         "\n{}",
         "═══════════════════════════════════════════════════════════════════".fg::<Cyan>()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "{}",
         "              Professional Rust Quality Tooling                    "
             .fg::<Cyan>()
             .italic()
-    );
-    println!(
+    )?;
+    writeln!(
+        out,
         "{}",
         "═══════════════════════════════════════════════════════════════════\n".fg::<Cyan>()
-    );
+    )?;
+    Ok(())
 }
 
 #[cfg(test)]

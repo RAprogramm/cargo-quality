@@ -1,31 +1,58 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
-use std::process::Command;
+use std::{
+    io::{self, Write},
+    process::Command
+};
 
 use masterror::AppResult;
 
 use crate::error::IoError;
 
+/// Base style settings: line width, braces, and trailing commas.
+#[derive(Debug, Clone)]
+pub struct StyleConfig {
+    pub trailing_comma:    &'static str,
+    pub brace_style:       &'static str,
+    pub max_width:         u32,
+    pub unstable_features: bool
+}
+
+/// Struct layout settings: field alignment and literal formatting.
+#[derive(Debug, Clone)]
+pub struct StructConfig {
+    pub struct_field_align_threshold: u32,
+    pub struct_lit_single_line:       bool
+}
+
+/// Comment formatting settings.
+#[derive(Debug, Clone)]
+pub struct CommentsConfig {
+    pub wrap_comments:               bool,
+    pub format_code_in_doc_comments: bool
+}
+
+/// Import ordering and grouping settings.
+#[derive(Debug, Clone)]
+pub struct ImportsConfig {
+    pub imports_granularity: &'static str,
+    pub group_imports:       &'static str,
+    pub reorder_imports:     bool
+}
+
 /// Rustfmt configuration settings.
 ///
 /// This structure holds the hardcoded quality standards for Rust code
-/// formatting. All settings are based on project conventions and ensure
-/// consistent formatting across all codebases without requiring local
-/// .rustfmt.toml files.
+/// formatting, grouped by concern. All settings are based on project
+/// conventions and ensure consistent formatting across all codebases without
+/// requiring local .rustfmt.toml files.
 #[derive(Debug, Clone)]
 pub struct RustfmtConfig {
-    pub trailing_comma:               &'static str,
-    pub brace_style:                  &'static str,
-    pub struct_field_align_threshold: u32,
-    pub wrap_comments:                bool,
-    pub format_code_in_doc_comments:  bool,
-    pub struct_lit_single_line:       bool,
-    pub max_width:                    u32,
-    pub imports_granularity:          &'static str,
-    pub group_imports:                &'static str,
-    pub reorder_imports:              bool,
-    pub unstable_features:            bool
+    pub style:    StyleConfig,
+    pub structs:  StructConfig,
+    pub comments: CommentsConfig,
+    pub imports:  ImportsConfig
 }
 
 impl Default for RustfmtConfig {
@@ -40,21 +67,29 @@ impl Default for RustfmtConfig {
     /// ```
     /// use cargo_quality::formatter::RustfmtConfig;
     /// let config = RustfmtConfig::default();
-    /// assert_eq!(config.max_width, 99);
+    /// assert_eq!(config.style.max_width, 99);
     /// ```
     fn default() -> Self {
         Self {
-            trailing_comma:               "Never",
-            brace_style:                  "SameLineWhere",
-            struct_field_align_threshold: 20,
-            wrap_comments:                true,
-            format_code_in_doc_comments:  true,
-            struct_lit_single_line:       false,
-            max_width:                    99,
-            imports_granularity:          "Crate",
-            group_imports:                "StdExternalCrate",
-            reorder_imports:              true,
-            unstable_features:            true
+            style:    StyleConfig {
+                trailing_comma:    "Never",
+                brace_style:       "SameLineWhere",
+                max_width:         99,
+                unstable_features: true
+            },
+            structs:  StructConfig {
+                struct_field_align_threshold: 20,
+                struct_lit_single_line:       false
+            },
+            comments: CommentsConfig {
+                wrap_comments:               true,
+                format_code_in_doc_comments: true
+            },
+            imports:  ImportsConfig {
+                imports_granularity: "Crate",
+                group_imports:       "StdExternalCrate",
+                reorder_imports:     true
+            }
         }
     }
 }
@@ -79,36 +114,36 @@ impl RustfmtConfig {
     /// assert!(args.contains(&"max_width=99".to_string()));
     /// ```
     pub fn to_args(&self) -> Vec<String> {
-        vec![
-            "--config".to_string(),
-            format!("trailing_comma={}", self.trailing_comma),
-            "--config".to_string(),
-            format!("brace_style={}", self.brace_style),
-            "--config".to_string(),
+        let settings = [
+            format!("trailing_comma={}", self.style.trailing_comma),
+            format!("brace_style={}", self.style.brace_style),
             format!(
                 "struct_field_align_threshold={}",
-                self.struct_field_align_threshold
+                self.structs.struct_field_align_threshold
             ),
-            "--config".to_string(),
-            format!("wrap_comments={}", self.wrap_comments),
-            "--config".to_string(),
+            format!("wrap_comments={}", self.comments.wrap_comments),
             format!(
                 "format_code_in_doc_comments={}",
-                self.format_code_in_doc_comments
+                self.comments.format_code_in_doc_comments
             ),
-            "--config".to_string(),
-            format!("struct_lit_single_line={}", self.struct_lit_single_line),
-            "--config".to_string(),
-            format!("max_width={}", self.max_width),
-            "--config".to_string(),
-            format!("imports_granularity={}", self.imports_granularity),
-            "--config".to_string(),
-            format!("group_imports={}", self.group_imports),
-            "--config".to_string(),
-            format!("reorder_imports={}", self.reorder_imports),
-            "--config".to_string(),
-            format!("unstable_features={}", self.unstable_features),
-        ]
+            format!(
+                "struct_lit_single_line={}",
+                self.structs.struct_lit_single_line
+            ),
+            format!("max_width={}", self.style.max_width),
+            format!("imports_granularity={}", self.imports.imports_granularity),
+            format!("group_imports={}", self.imports.group_imports),
+            format!("reorder_imports={}", self.imports.reorder_imports),
+            format!("unstable_features={}", self.style.unstable_features)
+        ];
+
+        let mut args = Vec::with_capacity(settings.len() * 2);
+        for setting in settings {
+            args.push("--config".to_string());
+            args.push(setting);
+        }
+
+        args
     }
 }
 
@@ -142,7 +177,10 @@ pub fn format_code() -> AppResult<()> {
     let status = command.status().map_err(IoError::from)?;
 
     if status.success() {
-        println!("Code formatted successfully");
+        io::stdout()
+            .lock()
+            .write_all(b"Code formatted successfully\n")
+            .map_err(IoError::from)?;
         Ok(())
     } else {
         Err(IoError::from(std::io::Error::other(format!(
@@ -160,16 +198,16 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = RustfmtConfig::default();
-        assert_eq!(config.max_width, 99);
-        assert_eq!(config.trailing_comma, "Never");
-        assert_eq!(config.brace_style, "SameLineWhere");
-        assert_eq!(config.imports_granularity, "Crate");
-        assert_eq!(config.group_imports, "StdExternalCrate");
-        assert!(config.wrap_comments);
-        assert!(config.format_code_in_doc_comments);
-        assert!(!config.struct_lit_single_line);
-        assert!(config.reorder_imports);
-        assert!(config.unstable_features);
+        assert_eq!(config.style.max_width, 99);
+        assert_eq!(config.style.trailing_comma, "Never");
+        assert_eq!(config.style.brace_style, "SameLineWhere");
+        assert_eq!(config.imports.imports_granularity, "Crate");
+        assert_eq!(config.imports.group_imports, "StdExternalCrate");
+        assert!(config.comments.wrap_comments);
+        assert!(config.comments.format_code_in_doc_comments);
+        assert!(!config.structs.struct_lit_single_line);
+        assert!(config.imports.reorder_imports);
+        assert!(config.style.unstable_features);
     }
 
     #[test]

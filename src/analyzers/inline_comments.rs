@@ -10,8 +10,9 @@
 use std::collections::HashSet;
 
 use masterror::AppResult;
-use syn::{File, ImplItem, Item, ItemFn, ItemImpl, spanned::Spanned, visit::Visit};
+use syn::{File, ImplItem, ItemFn, ItemImpl, spanned::Spanned, visit::Visit};
 
+use super::visitor::{FunctionVisitor, ItemCheckers, SourceView};
 use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue};
 
 /// Analyzer for detecting inline comments inside functions and methods.
@@ -105,12 +106,12 @@ impl InlineCommentsAnalyzer {
                     format!("Move to doc block # Notes section:\n/// - {}", comment_text)
                 };
 
-                issues.push(Issue {
-                    line:    line_num,
-                    column:  1,
-                    message: format!("Inline comment found: \"{}\"\n{}", comment_text, suggestion),
-                    fix:     Fix::None
-                });
+                issues.push(Issue::new(
+                    line_num,
+                    1,
+                    format!("Inline comment found: \"{}\"\n{}", comment_text, suggestion),
+                    Fix::None
+                ));
             }
         }
 
@@ -199,8 +200,14 @@ impl Analyzer for InlineCommentsAnalyzer {
         let excluded = crate::analyzers::multiline_literal_lines(ast);
         let mut visitor = FunctionVisitor {
             issues:   Vec::new(),
-            lines:    &lines,
-            excluded: &excluded
+            source:   SourceView {
+                lines:    &lines,
+                excluded: &excluded
+            },
+            checkers: ItemCheckers {
+                function:   Self::check_function,
+                impl_block: Self::check_impl_block
+            }
         };
         visitor.visit_file(ast);
 
@@ -208,34 +215,6 @@ impl Analyzer for InlineCommentsAnalyzer {
             issues:        visitor.issues,
             fixable_count: 0
         })
-    }
-}
-
-struct FunctionVisitor<'a> {
-    issues:   Vec<Issue>,
-    lines:    &'a [&'a str],
-    excluded: &'a HashSet<usize>
-}
-
-impl<'ast, 'a> Visit<'ast> for FunctionVisitor<'a> {
-    fn visit_item(&mut self, node: &'ast Item) {
-        match node {
-            Item::Fn(func) => {
-                let func_issues =
-                    InlineCommentsAnalyzer::check_function(func, self.lines, self.excluded);
-                self.issues.extend(func_issues);
-            }
-            Item::Impl(impl_block) => {
-                let impl_issues = InlineCommentsAnalyzer::check_impl_block(
-                    impl_block,
-                    self.lines,
-                    self.excluded
-                );
-                self.issues.extend(impl_issues);
-            }
-            _ => {}
-        }
-        syn::visit::visit_item(self, node);
     }
 }
 
@@ -278,7 +257,12 @@ mod tests {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert!(result.issues[0].message.contains("This is a comment"));
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("This is a comment")
+        );
     }
 
     #[test]
@@ -336,8 +320,18 @@ mod tests {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert!(result.issues[0].message.contains("Calculate sum"));
-        assert!(result.issues[0].message.contains("`let sum = a + b;`"));
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("Calculate sum")
+        );
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("`let sum = a + b;`")
+        );
     }
 
     #[test]
@@ -355,7 +349,7 @@ impl Foo {
 
         let result = analyzer.analyze(&code, content).unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert!(result.issues[0].message.contains("Process data"));
+        assert!(result.issues[0].diagnostic.message.contains("Process data"));
     }
 
     #[test]

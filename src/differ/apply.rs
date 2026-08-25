@@ -14,7 +14,7 @@ use std::fs;
 use masterror::AppResult;
 
 use super::types::{DiffResult, FileDiff};
-use crate::{analyzer::Suggestion, error::IoError, fixer::apply_suggestions};
+use crate::{error::IoError, fixer::apply_suggestions};
 
 /// Applies selected diff entries to their files.
 ///
@@ -63,11 +63,11 @@ fn apply_file(file: &FileDiff) -> AppResult<usize> {
     let mut suggestions = Vec::new();
     for entry in &file.entries {
         let idx = entry.line.saturating_sub(1);
-        if lines.get(idx).is_some_and(|line| *line == entry.original) {
-            suggestions.push(Suggestion {
-                edit:   entry.edit.clone(),
-                import: entry.import.clone()
-            });
+        if lines
+            .get(idx)
+            .is_some_and(|line| *line == entry.preview.original)
+        {
+            suggestions.push(entry.suggestion.clone());
         }
     }
 
@@ -88,10 +88,11 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::analyzers::get_analyzers;
+    use crate::analyzers::default_analyzers;
 
     fn diff_for(path: &Path) -> DiffResult {
-        let file = super::super::generate_diff(path.to_str().unwrap(), &get_analyzers()).unwrap();
+        let file =
+            super::super::generate_diff(path.to_str().unwrap(), &default_analyzers()).unwrap();
         let mut result = DiffResult::new();
         result.add_file(file);
         result

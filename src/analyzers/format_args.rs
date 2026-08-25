@@ -24,15 +24,15 @@ impl FormatArgsAnalyzer {
             let span = mac.span();
             let start = span.start();
 
-            return Some(Issue {
-                line:    start.line,
-                column:  start.column,
-                message: format!(
+            return Some(Issue::new(
+                start.line,
+                start.column,
+                format!(
                     "Use named format arguments for better readability ({} placeholders)",
                     placeholder_count
                 ),
-                fix:     Fix::None
-            });
+                Fix::None
+            ));
         }
 
         None
@@ -346,7 +346,12 @@ mod tests {
 
         let result = analyzer.analyze(&code, "").unwrap();
         assert_eq!(result.issues.len(), 1);
-        assert!(result.issues[0].message.contains("3 placeholders"));
+        assert!(
+            result.issues[0]
+                .diagnostic
+                .message
+                .contains("3 placeholders")
+        );
     }
 
     #[test]
