@@ -109,13 +109,14 @@ mod tests {
         .unwrap();
 
         let applied = apply_diff(&diff_for(&path)).unwrap();
-        assert_eq!(applied, 1);
+        assert_eq!(applied, 3, "path rewrite, comment removal, notes insertion");
 
         let output = fs::read_to_string(&path).unwrap();
         assert!(output.contains("use std::fs::read_to_string;"));
         assert!(output.contains("let x = read_to_string(\"f\");"));
         assert!(!output.contains("std::fs::read_to_string("));
-        assert!(output.contains("// note"), "comment preserved");
+        assert!(output.contains("/// - note"), "comment moved to doc block");
+        assert!(!output.contains("    // note"), "inline comment removed");
         assert!(output.starts_with("//! Module doc"));
         assert!(output.ends_with('\n'));
     }

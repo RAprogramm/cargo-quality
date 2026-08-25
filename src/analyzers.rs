@@ -14,7 +14,7 @@
 //! | [`PathImportAnalyzer`] | `std::fs::read()` paths | Yes |
 //! | [`FormatArgsAnalyzer`] | `println!("{}", x)` positional args | No |
 //! | [`EmptyLinesAnalyzer`] | Empty lines in functions | Yes |
-//! | [`InlineCommentsAnalyzer`] | `//` comments in code | No |
+//! | [`InlineCommentsAnalyzer`] | `//` comments in code | Yes |
 //!
 //! # Usage
 //!
@@ -121,7 +121,7 @@ pub mod inline_comments;
 pub mod path_import;
 pub mod visitor;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Range};
 
 pub use empty_lines::EmptyLinesAnalyzer;
 pub use format_args::FormatArgsAnalyzer;
@@ -172,6 +172,53 @@ pub(crate) fn multiline_literal_lines(ast: &File) -> HashSet<usize> {
     };
     visitor.visit_file(ast);
     visitor.lines
+}
+
+/// Computes the byte offset at which every source line starts.
+///
+/// Suggestion builders translate 1-based line numbers from diagnostics into
+/// byte-range edits against the original source, so they need the starting
+/// offset of each line.
+///
+/// # Arguments
+///
+/// * `content` - Source code to index
+///
+/// # Returns
+///
+/// Vector whose element `n` is the byte offset where line `n + 1` starts
+pub(crate) fn line_offsets(content: &str) -> Vec<usize> {
+    let mut offsets = vec![0];
+    for (index, byte) in content.bytes().enumerate() {
+        if byte == b'\n' {
+            offsets.push(index + 1);
+        }
+    }
+    offsets
+}
+
+/// Computes the byte range that removes an entire source line.
+///
+/// The range spans from the line start through its trailing newline, so
+/// deleting it leaves no blank residue behind.
+///
+/// # Arguments
+///
+/// * `offsets` - Line start offsets from [`line_offsets`]
+/// * `content_len` - Total source length in bytes
+/// * `line` - 1-based line number to delete
+///
+/// # Returns
+///
+/// Byte range covering the line, or `None` when the line does not exist
+pub(crate) fn line_deletion_range(
+    offsets: &[usize],
+    content_len: usize,
+    line: usize
+) -> Option<Range<usize>> {
+    let start = *offsets.get(line.checked_sub(1)?)?;
+    let end = offsets.get(line).copied().unwrap_or(content_len);
+    Some(start..end)
 }
 
 /// Returns all built-in analyzers.

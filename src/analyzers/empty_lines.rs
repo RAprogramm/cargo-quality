@@ -12,8 +12,11 @@ use std::collections::HashSet;
 use masterror::AppResult;
 use syn::{File, ImplItem, ItemFn, ItemImpl, spanned::Spanned, visit::Visit};
 
-use super::visitor::{FunctionVisitor, ItemCheckers, SourceView};
-use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue};
+use super::{
+    line_deletion_range, line_offsets,
+    visitor::{FunctionVisitor, ItemCheckers, SourceView}
+};
+use crate::analyzer::{AnalysisResult, Analyzer, Fix, Issue, Suggestion, TextEdit};
 
 /// Analyzer for detecting empty lines inside functions and methods.
 ///
@@ -94,7 +97,7 @@ impl EmptyLinesAnalyzer {
                     line_num,
                     1,
                     "Empty line in function body indicates untamed complexity".to_string(),
-                    Fix::None
+                    Fix::Simple("Remove empty line".to_string())
                 ));
             }
         }
@@ -211,11 +214,36 @@ impl Analyzer for EmptyLinesAnalyzer {
             }
         };
         visitor.visit_file(ast);
+        let fixable_count = visitor.issues.len();
 
         Ok(AnalysisResult {
-            issues:        visitor.issues,
-            fixable_count: 0
+            issues: visitor.issues,
+            fixable_count
         })
+    }
+
+    fn suggestions(&self, ast: &File, content: &str) -> AppResult<Vec<Suggestion>> {
+        let result = self.analyze(ast, content)?;
+        let offsets = line_offsets(content);
+        let mut seen = HashSet::new();
+        let mut suggestions = Vec::new();
+        for issue in result.issues {
+            let line = issue.diagnostic.line;
+            if !seen.insert(line) {
+                continue;
+            }
+            let Some(range) = line_deletion_range(&offsets, content.len(), line) else {
+                continue;
+            };
+            suggestions.push(Suggestion {
+                edit:   TextEdit {
+                    range,
+                    replacement: String::new()
+                },
+                import: None
+            });
+        }
+        Ok(suggestions)
     }
 }
 
@@ -335,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    fn test_advisory_only_not_fixable() {
+    fn test_issues_are_fixable() {
         let analyzer = EmptyLinesAnalyzer::new();
         let content = r#"fn main() {
     let x = 1;
@@ -345,23 +373,39 @@ mod tests {
         let code = syn::parse_str(content).unwrap();
 
         let result = analyzer.analyze(&code, content).unwrap();
-        assert_eq!(result.fixable_count, 0);
+        assert_eq!(result.fixable_count, 1);
         assert_eq!(result.issues.len(), 1);
-        assert!(!result.issues[0].fix.is_available());
+        assert!(result.issues[0].fix.is_available());
     }
 
     #[test]
-    fn test_no_edits() {
+    fn test_suggestions_delete_empty_line() {
         let analyzer = EmptyLinesAnalyzer::new();
-        let content = r#"fn main() {
-    let x = 1;
-
-    let y = 2;
-}"#;
+        let content = "fn main() {\n    let x = 1;\n\n    let y = 2;\n}";
         let code = syn::parse_str(content).unwrap();
 
-        let edits = analyzer.suggestions(&code, content).unwrap();
-        assert!(edits.is_empty());
+        let suggestions = analyzer.suggestions(&code, content).unwrap();
+        assert_eq!(suggestions.len(), 1);
+
+        let fixed = crate::fixer::apply_suggestions(content, &suggestions);
+        assert_eq!(fixed, "fn main() {\n    let x = 1;\n    let y = 2;\n}");
+    }
+
+    #[test]
+    fn test_suggestions_delete_multiple_lines_bottom_up() {
+        let analyzer = EmptyLinesAnalyzer::new();
+        let content =
+            "fn process() {\n    let x = read();\n\n    let y = transform(x);\n\n    write(y);\n}";
+        let code = syn::parse_str(content).unwrap();
+
+        let suggestions = analyzer.suggestions(&code, content).unwrap();
+        assert_eq!(suggestions.len(), 2);
+
+        let fixed = crate::fixer::apply_suggestions(content, &suggestions);
+        assert_eq!(
+            fixed,
+            "fn process() {\n    let x = read();\n    let y = transform(x);\n    write(y);\n}"
+        );
     }
 
     #[test]
