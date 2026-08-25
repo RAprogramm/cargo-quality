@@ -378,37 +378,60 @@ impl GlobalReport {
         self.reports.iter().map(|r| r.total_fixable()).sum()
     }
 
+    /// Borrows a renderer exposing the report's display modes.
+    ///
+    /// # Returns
+    ///
+    /// A renderer bound to this report
+    #[inline]
+    pub fn renderer(&self) -> GlobalReportRenderer<'_> {
+        GlobalReportRenderer {
+            report: self
+        }
+    }
+}
+
+/// Renders a [`GlobalReport`] in its compact, per-analyzer, and verbose modes.
+///
+/// Splitting rendering from aggregation keeps the report type focused on
+/// collecting results while this type owns the output formats.
+pub struct GlobalReportRenderer<'report> {
+    /// Report being rendered
+    report: &'report GlobalReport
+}
+
+impl<'report> GlobalReportRenderer<'report> {
     /// Display summary only (total issues and fixable count).
-    pub fn display_compact(&self, color: bool) -> String {
+    pub fn compact(&self, color: bool) -> String {
         let mut output = String::new();
 
         if color {
             output.push_str(&format!(
                 "{}: {}\n",
                 "Total issues".green().bold(),
-                self.total_issues().to_string().green().bold()
+                self.report.total_issues().to_string().green().bold()
             ));
             output.push_str(&format!(
                 "{}: {}\n",
                 "Fixable".green().bold(),
-                self.total_fixable().to_string().green().bold()
+                self.report.total_fixable().to_string().green().bold()
             ));
         } else {
-            output.push_str(&format!("Total issues: {}\n", self.total_issues()));
-            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+            output.push_str(&format!("Total issues: {}\n", self.report.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.report.total_fixable()));
         }
 
         output
     }
 
     /// Display details for a specific analyzer only.
-    pub fn display_analyzer(&self, analyzer_name: &str, color: bool) -> String {
+    pub fn analyzer(&self, analyzer_name: &str, color: bool) -> String {
         type FileLines = Vec<(String, Vec<usize>)>;
         type MessageGroups = HashMap<String, FileLines>;
 
         let mut message_map: MessageGroups = HashMap::new();
 
-        for report in &self.reports {
+        for report in &self.report.reports {
             for (name, result) in &report.results {
                 if name != analyzer_name || result.issues.is_empty() {
                     continue;
@@ -448,16 +471,16 @@ impl GlobalReport {
             output.push_str(&format!(
                 "{}: {}\n",
                 "Total issues".green().bold(),
-                self.total_issues().to_string().green().bold()
+                self.report.total_issues().to_string().green().bold()
             ));
             output.push_str(&format!(
                 "{}: {}\n",
                 "Fixable".green().bold(),
-                self.total_fixable().to_string().green().bold()
+                self.report.total_fixable().to_string().green().bold()
             ));
         } else {
-            output.push_str(&format!("Total issues: {}\n", self.total_issues()));
-            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+            output.push_str(&format!("Total issues: {}\n", self.report.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.report.total_fixable()));
         }
 
         output
@@ -467,14 +490,14 @@ impl GlobalReport {
     ///
     /// Groups issues by analyzer and message across all files,
     /// then shows which files have each issue in grid layout.
-    pub fn display_verbose(&self, color: bool) -> String {
+    pub fn verbose(&self, color: bool) -> String {
         type FileLines = Vec<(String, Vec<usize>)>;
         type MessageGroups = HashMap<String, FileLines>;
         type AnalyzerGroups = HashMap<String, MessageGroups>;
 
         let mut analyzer_groups: AnalyzerGroups = HashMap::new();
 
-        for report in &self.reports {
+        for report in &self.report.reports {
             for (analyzer_name, result) in &report.results {
                 if result.issues.is_empty() {
                     continue;
@@ -521,16 +544,16 @@ impl GlobalReport {
             output.push_str(&format!(
                 "\n{}: {}\n",
                 "Total issues".green().bold(),
-                self.total_issues().to_string().green().bold()
+                self.report.total_issues().to_string().green().bold()
             ));
             output.push_str(&format!(
                 "{}: {}\n",
                 "Fixable".green().bold(),
-                self.total_fixable().to_string().green().bold()
+                self.report.total_fixable().to_string().green().bold()
             ));
         } else {
-            output.push_str(&format!("\nTotal issues: {}\n", self.total_issues()));
-            output.push_str(&format!("Fixable: {}\n", self.total_fixable()));
+            output.push_str(&format!("\nTotal issues: {}\n", self.report.total_issues()));
+            output.push_str(&format!("Fixable: {}\n", self.report.total_fixable()));
         }
 
         output

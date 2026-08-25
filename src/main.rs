@@ -456,14 +456,14 @@ fn check_quality(
 
     if global_report.total_issues() > 0 {
         if let Some(analyzer) = analyzer_name {
-            print!("{}", global_report.display_analyzer(analyzer, color));
+            print!("{}", global_report.renderer().analyzer(analyzer, color));
         } else if verbose {
-            print!("{}", global_report.display_verbose(color));
+            print!("{}", global_report.renderer().verbose(color));
         } else {
-            print!("{}", global_report.display_compact(color));
+            print!("{}", global_report.renderer().compact(color));
         }
     } else {
-        print!("{}", global_report.display_compact(color));
+        print!("{}", global_report.renderer().compact(color));
     }
 
     Ok(global_report.total_issues() > 0)

@@ -119,6 +119,7 @@ pub mod empty_lines;
 pub mod format_args;
 pub mod inline_comments;
 pub mod path_import;
+pub mod visitor;
 
 use std::collections::HashSet;
 
