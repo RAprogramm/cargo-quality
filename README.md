@@ -52,12 +52,12 @@ binary, ensuring uniform analysis across your entire codebase.
 
 This library provides:
 
-- **`analyzer`** - Core trait and types for building analyzers
-- **`analyzers`** - Built-in analyzers for common code quality issues
-- **`formatter`** - Code formatting with hardcoded standards
-- **`differ`** - Diff generation and visualization
-- **`report`** - Analysis report generation
-- **`error`** - Error types for quality operations
+- **[`analyzer`](https://docs.rs/cargo-quality/latest/cargo_quality/analyzer/)** - Core trait and types for building analyzers
+- **[`analyzers`](https://docs.rs/cargo-quality/latest/cargo_quality/analyzers/)** - Built-in analyzers for common code quality issues
+- **[`formatter`](https://docs.rs/cargo-quality/latest/cargo_quality/formatter/)** - Code formatting with hardcoded standards
+- **[`differ`](https://docs.rs/cargo-quality/latest/cargo_quality/differ/)** - Diff generation and visualization
+- **[`report`](https://docs.rs/cargo-quality/latest/cargo_quality/report/)** - Analysis report generation
+- **[`error`](https://docs.rs/cargo-quality/latest/cargo_quality/error/)** - Error types for quality operations
 
 ### Quick Start
 
@@ -76,22 +76,26 @@ let ast = syn::parse_file(code).unwrap();
 let result = analyzer.analyze(&ast, code).unwrap();
 
 assert!(!result.issues.is_empty());
-assert!(result.issues[0].message.contains("Use import"));
+assert!(result.issues[0].diagnostic.message.contains("Use import"));
 ```
 
 ### Available Analyzers
 
 | Analyzer | Description |
 |----------|-------------|
-| `PathImportAnalyzer` | Detects `std::fs::read` paths that should use `use` |
-| `FormatArgsAnalyzer` | Finds `println!("{}", x)` that should use `{x}` |
-| `EmptyLinesAnalyzer` | Finds empty lines in function bodies |
-| `InlineCommentsAnalyzer` | Finds `//` comments that should be `///` |
+| [`PathImportAnalyzer`] | Detects `std::fs::read` paths that should use `use` |
+| [`FormatArgsAnalyzer`] | Finds `println!("{}", x)` that should use `{x}` |
+| [`EmptyLinesAnalyzer`] | Finds empty lines in function bodies |
+| [`InlineCommentsAnalyzer`] | Finds `//` comments that should be `///` |
 
+[`PathImportAnalyzer`]: https://docs.rs/cargo-quality/latest/cargo_quality/analyzers/path_import/struct.PathImportAnalyzer.html
+[`FormatArgsAnalyzer`]: https://docs.rs/cargo-quality/latest/cargo_quality/analyzers/format_args/struct.FormatArgsAnalyzer.html
+[`EmptyLinesAnalyzer`]: https://docs.rs/cargo-quality/latest/cargo_quality/analyzers/empty_lines/struct.EmptyLinesAnalyzer.html
+[`InlineCommentsAnalyzer`]: https://docs.rs/cargo-quality/latest/cargo_quality/analyzers/inline_comments/struct.InlineCommentsAnalyzer.html
 
 ### Running All Analyzers
 
-Use `analyzers::default_analyzers()` to get all built-in analyzers:
+Use [`analyzers::default_analyzers()`](https://docs.rs/cargo-quality/latest/cargo_quality/analyzers/fn.default_analyzers.html) to get all built-in analyzers:
 
 ```rust
 use cargo_quality::{analyzer::Analyzer, analyzers::default_analyzers};
@@ -111,7 +115,7 @@ for analyzer in default_analyzers() {
 
 ### Custom Analyzers
 
-Implement the `analyzer::Analyzer` trait to create custom analyzers:
+Implement the [`analyzer::Analyzer`](https://docs.rs/cargo-quality/latest/cargo_quality/analyzer/trait.Analyzer.html) trait to create custom analyzers:
 
 ```rust
 use cargo_quality::analyzer::{AnalysisResult, Analyzer};
