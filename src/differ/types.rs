@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 // SPDX-License-Identifier: MIT
 
-use crate::analyzer::TextEdit;
+use crate::analyzer::{ImportEdit, TextEdit};
 
 /// Represents a single code change.
 ///
@@ -15,7 +15,7 @@ pub struct DiffEntry {
     pub original:    String,
     pub modified:    String,
     pub description: String,
-    pub import:      Option<String>,
+    pub import:      Option<ImportEdit>,
     pub edit:        TextEdit
 }
 

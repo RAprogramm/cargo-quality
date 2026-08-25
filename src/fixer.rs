@@ -8,15 +8,16 @@
 //! comments, blank lines, and the author's formatting are preserved — unlike
 //! reprinting the AST, which drops comments and reformats the whole file.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::analyzer::{Suggestion, TextEdit};
 
 /// Applies fix suggestions to the source, deduplicating their imports.
 ///
 /// Collects each suggestion's rewrite edit, inserts every distinct required
-/// import once at the top of the file, and applies them via [`apply_edits`].
-/// Comments, blank lines, and formatting outside the edits are preserved.
+/// import once at its target offset — the module that must receive it — and
+/// applies them via [`apply_edits`]. Comments, blank lines, and formatting
+/// outside the edits are preserved.
 ///
 /// # Arguments
 ///
@@ -30,18 +31,20 @@ pub fn apply_suggestions(source: &str, suggestions: &[Suggestion]) -> String {
     let mut edits: Vec<TextEdit> = suggestions.iter().map(|s| s.edit.clone()).collect();
 
     let mut seen = HashSet::new();
-    let mut imports = Vec::new();
+    let mut grouped: BTreeMap<usize, Vec<&str>> = BTreeMap::new();
     for suggestion in suggestions {
         if let Some(import) = &suggestion.import
-            && seen.insert(import.clone())
+            && seen.insert((import.offset, import.statement.as_str()))
         {
-            imports.push(import.clone());
+            grouped
+                .entry(import.offset)
+                .or_default()
+                .push(import.statement.as_str());
         }
     }
 
-    if !imports.is_empty() {
-        let offset = import_insertion_offset(source);
-        let mut block = imports.join("\n");
+    for (offset, statements) in grouped {
+        let mut block = statements.join("\n");
         block.push('\n');
         edits.push(TextEdit {
             range:       offset..offset,

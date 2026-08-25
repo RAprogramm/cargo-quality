@@ -142,7 +142,7 @@ mod tests {
         let path = temp.path().join("d.rs");
         fs::write(
             &path,
-            "fn main() {\n    let a = std::fs::read(\"x\");\n    let b = other::helpers::read(\"y\");\n}\n"
+            "fn main() {\n    let a = std::fs::read(\"x\");\n    let b = crate::helpers::read(\"y\");\n}\n"
         )
         .unwrap();
 

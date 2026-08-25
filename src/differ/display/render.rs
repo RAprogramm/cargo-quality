@@ -126,14 +126,14 @@ fn render_imports(lines: &mut Vec<String>, max_width: &mut usize, file: &FileDif
     let imports: Vec<&str> = file
         .entries
         .iter()
-        .filter_map(|e| e.import.as_deref())
+        .filter_map(|e| e.import.as_ref().map(|i| i.statement.as_str()))
         .collect();
 
     if imports.is_empty() {
         return;
     }
 
-    let import_header = "Imports (file top)";
+    let import_header = "Imports";
     *max_width = (*max_width).max(measure_text_width(import_header));
 
     if color {
@@ -335,7 +335,7 @@ fn render_footer(lines: &mut Vec<String>, max_width: &mut usize, color: bool) {
 mod tests {
     use super::*;
     use crate::{
-        analyzer::TextEdit,
+        analyzer::{ImportEdit, TextEdit},
         differ::types::{DiffEntry, FileDiff}
     };
 
@@ -374,7 +374,10 @@ mod tests {
             original:    "std::fs::read()".to_string(),
             modified:    "read()".to_string(),
             description: "Use import".to_string(),
-            import:      Some("use std::fs::read;".to_string()),
+            import:      Some(ImportEdit {
+                offset:    0,
+                statement: "use std::fs::read;".to_string()
+            }),
             edit:        TextEdit::default()
         });
 

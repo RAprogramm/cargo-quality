@@ -287,7 +287,7 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<DiffResul
                 println!("{}", format!("- {}", entry.original).red());
 
                 if let Some(import) = &entry.import {
-                    println!("{}", format!("+ {}", import).green());
+                    println!("{}", format!("+ {}", import.statement).green());
                 }
 
                 println!("{}", format!("+ {}", entry.modified).green());
@@ -297,7 +297,7 @@ pub fn show_interactive(result: &DiffResult, color: bool) -> AppResult<DiffResul
                 println!("- {}", entry.original);
 
                 if let Some(import) = &entry.import {
-                    println!("+ {}", import);
+                    println!("+ {}", import.statement);
                 }
 
                 println!("+ {}", entry.modified);
