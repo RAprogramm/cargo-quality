@@ -25,7 +25,7 @@ syn = { version = "3", features = [
 ] }
 quote = "1"
 proc-macro2 = { version = "1", features = ["span-locations"] }
-masterror = "0.30"
+masterror = "0.31"
 ignore = "0.4"
 owo-colors = "4"
 terminal_size = "0.4"

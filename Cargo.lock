@@ -563,9 +563,9 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "masterror"
-version = "0.30.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd170c26e8f0a3c3f1d1552d5a1f6271cbe23cf3c9b50f2fe2b803c37cd88756"
+checksum = "fd312a95347292010723749a150fbe944977224df02b8558ddd10f3f4ca50be1"
 dependencies = [
  "http",
  "itoa",
@@ -580,9 +580,9 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37f9fe3a3eb03ef6e56c0dac724b93d6a920dcb1e91ef82cd94b728dfddf1959"
+checksum = "e34363fe84e781206735b3e31e01e3e83204b48f78b6eac33da59349c78df1ff"
 dependencies = [
  "masterror-template",
  "proc-macro2",
@@ -592,9 +592,9 @@ dependencies = [
 
 [[package]]
 name = "masterror-template"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4268f28cdc36feb4184ccb0f1f2d70075efb8cce2669c7fb8220450c74e7217c"
+checksum = "74beba81b60a826b10771261524f642aee7f6cd031b88613f6b4e13051e65234"
 
 [[package]]
 name = "memchr"
